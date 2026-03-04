@@ -213,16 +213,9 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
         enviarZap(nova, 'chegada');
     }
 
-    function salvarEAtualizar() {
-    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
-    renderizarTabela();
-    atualizarDashboard();
-
-    salvarEAtualizar();
+    salvarEAtualizar(); // ✅ agora chama corretamente
     this.reset();
     document.getElementById('listaSugestoesMoradores').style.display = 'none';
-}
-    
 });
 
 // --- FINALIZAR A ENTREGA COM VALIDAÇÃO DE PIN ---
