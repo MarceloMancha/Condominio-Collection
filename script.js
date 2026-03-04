@@ -88,56 +88,95 @@ const agendaMoradores = {
 
 let encomendas = JSON.parse(localStorage.getItem(CONFIG.ID_CLIENTE)) || [];
 let selecionadaId = null;
-let canvas, ctx, desenhando = false;
+let html5QrCode; // Variável da câmera
 
 window.onload = () => {
     renderizarTabela();
     atualizarDashboard();
 };
 
-// ================= BUSCA E PREENCHIMENTO =================
+async function alternarCamera() {
+    const area = document.getElementById('area-scanner');
+    
+    // Se a câmera estiver fechada, vamos abrir
+    if (area.style.display === 'none') {
+        area.style.display = 'block';
+        html5QrCode = new Html5Qrcode("reader");
+        
+        try {
+            await html5QrCode.start(
+                { facingMode: "environment" }, // Usa a câmera de trás do celular
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                (decodedText) => {
+                    document.getElementById('notaFiscal').value = decodedText; // Preenche a NF
+                    pararLeitor(); // Fecha a câmera após ler
+                }
+            );
+        } catch (err) {
+            alert("Erro ao acessar câmera: " + err);
+            area.style.display = 'none';
+        }
+    } else {
+        pararLeitor(); // Se clicar de novo enquanto aberta, ela fecha
+    }
+}
+
+function pararLeitor() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('area-scanner').style.display = 'none';
+            html5QrCode = null;
+        }).catch(() => {
+            document.getElementById('area-scanner').style.display = 'none';
+        });
+    }
+}
+
+// --- BUSCA DE MORADORES AO DIGITAR O APTO ---
 function buscarMoradores() {
-    const torre = document.getElementById('torre').value;
     const apto = document.getElementById('sala').value;
     const listaSugestoes = document.getElementById('listaSugestoesMoradores');
     const container = document.getElementById('containerSugestoes');
     
-    const chave = torre + apto;
-    const dadosApto = agendaMoradores[chave];
-
-    if (dadosApto && dadosApto.moradores.length > 0) {
+    // Verifica se o apto existe na nossa lista (agendaMoradores)
+    if (agendaMoradores[apto]) {
         listaSugestoes.style.display = 'block';
-        container.innerHTML = '';
+        container.innerHTML = ''; // Limpa botões de buscas anteriores
         
-        dadosApto.moradores.forEach(m => {
+        agendaMoradores[apto].moradores.forEach(m => {
             const btn = document.createElement('button');
             btn.type = "button";
             btn.className = "btn-sugestao";
-            btn.style = "padding: 5px 10px; background: #e2e8f0; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;";
             btn.innerText = m.nome;
+            
+            // Quando clica no nome, preenche os campos mas permite editar depois
             btn.onclick = () => {
                 document.getElementById('destinatario').value = m.nome;
                 document.getElementById('telefone').value = m.tel;
-                listaSugestoes.style.display = 'none';
+                listaSugestoes.style.display = 'none'; // Esconde os botões após escolher
             };
             container.appendChild(btn);
         });
     } else {
+        // Se o apto não estiver na lista, esconde as sugestões para digitar manual
         listaSugestoes.style.display = 'none';
     }
 }
 
-// ================= WHATSAPP FORMATADO =================
+// --- FUNÇÃO DO WHATSAPP COM BOM DIA/TARDE/NOITE E NEGRITO ---
 function enviarZap(item, tipo) {
     if (!item.telefone) return;
-    const tel = item.telefone.replace(/\D/g, '');
+    
+    const tel = item.telefone.replace(/\D/g, ''); // Limpa parênteses e traços
     const hora = new Date().getHours();
     let saudacao = (hora < 12) ? "Bom dia" : (hora < 18) ? "Boa tarde" : "Boa noite";
 
     let msg = "";
     if (tipo === 'chegada') {
-        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda (NF: *${item.nf}*) chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApartamento: *${item.sala}* - Torre: *${item.torre}*.\n\nPor favor, retire assim que possível.`;
+        // Mensagem de Aviso de Chegada
+        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda (NF: *${item.nf}*) chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApartamento: *${item.sala}*.\n\nPor favor, retire assim que possível na Portaria.`;
     } else {
+        // Mensagem de Confirmação de Retirada
         msg = `✅ *Confirmação de Retirada*\n${saudacao}, *${item.destinatario}*!\n\nA encomenda (NF: *${item.nf}*) do apartamento *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
     }
 
@@ -180,68 +219,94 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
     document.getElementById('listaSugestoesMoradores').style.display = 'none';
 });
 
-// ================= RETIRADA COM PIN =================
+// --- FINALIZAR A ENTREGA COM VALIDAÇÃO DE PIN ---
 function finalizarEntrega() {
-    const nome = document.getElementById('nomeRec').value;
+    const nomeQuemRetira = document.getElementById('nomeRec').value;
     const pinDigitado = document.getElementById('pinConfirmacao').value;
     
-    if(!nome) return alert("Informe quem está retirando.");
+    if(!nomeQuemRetira) {
+        alert("Por favor, informe quem está retirando a encomenda.");
+        return;
+    }
     
+    // Pega os dados da encomenda que foi clicada na tabela
     const item = encomendas.find(e => e.id === selecionadaId);
-    const chave = item.torre + item.sala;
-    const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
+    
+    // Busca o PIN correto na agenda. Se não achar o apto, usa o PIN PADRÃO
+    const pinCorreto = agendaMoradores[item.sala] ? agendaMoradores[item.sala].pin : CONFIG.PIN_PADRAO;
 
-    if(pinDigitado !== pinCorreto) {
-        return alert("❌ PIN incorreto! A entrega não pode ser finalizada.");
+    if (pinDigitado !== pinCorreto) {
+        alert("❌ PIN INCORRETO! A entrega não pode ser finalizada sem o código do morador.");
+        return;
     }
 
+    // Se o PIN estiver certo, salva os dados de retirada
     const index = encomendas.findIndex(e => e.id === selecionadaId);
     encomendas[index].status = 'Retirado';
-    encomendas[index].quemRetirou = nome;
+    encomendas[index].quemRetirou = nomeQuemRetira;
     encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
+    
+    // Salva a imagem da assinatura do Canvas
+    const canvas = document.getElementById('canvasAssinatura');
     encomendas[index].assinatura = canvas.toDataURL('image/jpeg', 0.5);
 
-    salvarEAtualizar();
-    enviarZap(encomendas[index], 'retirada');
+    // Salva no banco de dados do navegador e atualiza a tela
+    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
     
+    renderizarTabela();
+    enviarZap(encomendas[index], 'retirada'); // Envia o Zap de confirmação
+    
+    alert("Retirada confirmada com sucesso!");
+    
+    // Limpa a tela para a próxima operação
+    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
     document.getElementById('nomeRec').value = "";
     document.getElementById('pinConfirmacao').value = "";
-    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
-    selecionarUnica(selecionadaId);
+    selecionarUnica(selecionadaId); 
 }
 
-// ================= FUNÇÕES DE APOIO =================
-function salvarEAtualizar() {
+// --- FINALIZAR A ENTREGA COM VALIDAÇÃO DE PIN ---
+function finalizarEntrega() {
+    const nomeQuemRetira = document.getElementById('nomeRec').value;
+    const pinDigitado = document.getElementById('pinConfirmacao').value;
+    
+    if(!nomeQuemRetira) {
+        alert("Por favor, informe quem está retirando a encomenda.");
+        return;
+    }
+    
+    // Pega os dados da encomenda que foi clicada na tabela
+    const item = encomendas.find(e => e.id === selecionadaId);
+    
+    // Busca o PIN correto na agenda. Se não achar o apto, usa o PIN PADRÃO
+    const pinCorreto = agendaMoradores[item.sala] ? agendaMoradores[item.sala].pin : CONFIG.PIN_PADRAO;
+
+    if (pinDigitado !== pinCorreto) {
+        alert("❌ PIN INCORRETO! A entrega não pode ser finalizada sem o código do morador.");
+        return;
+    }
+
+    // Se o PIN estiver certo, salva os dados de retirada
+    const index = encomendas.findIndex(e => e.id === selecionadaId);
+    encomendas[index].status = 'Retirado';
+    encomendas[index].quemRetirou = nomeQuemRetira;
+    encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
+    
+    // Salva a imagem da assinatura do Canvas
+    const canvas = document.getElementById('canvasAssinatura');
+    encomendas[index].assinatura = canvas.toDataURL('image/jpeg', 0.5);
+
+    // Salva no banco de dados do navegador e atualiza a tela
     localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
+    
     renderizarTabela();
-    atualizarDashboard();
+    enviarZap(encomendas[index], 'retirada'); // Envia o Zap de confirmação
+    
+    alert("Retirada confirmada com sucesso!");
+    
+    // Limpa a tela para a próxima operação
+    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
+    document.getElementById('nomeRec').value = "";
+    document.getElementById('pinConfirmacao').value = "";
+    selecionarUnica(selecionadaId); 
 }
-
-function renderizarTabela(dados = encomendas) {
-    const corpo = document.getElementById('listaCorpo');
-    if (!corpo) return;
-    corpo.innerHTML = '';
-
-    const ordenados = [...dados].sort((a, b) => b.id - a.id);
-
-    ordenados.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.onclick = (e) => { if (e.target.tagName !== 'BUTTON') selecionarUnica(item.id); };
-        tr.innerHTML = `
-            <td>${item.data}</td>
-            <td>${item.nf}</td>
-            <td style="font-weight:bold; color:#15803d;">${item.sala}</td>
-            <td>${item.torre}</td>
-            <td>${item.destinatario}</td>
-            <td style="font-weight:bold; color:${item.status === 'Retirado' ? 'green' : '#f59e0b'}">${item.status}</td>
-            <td>
-                <button onclick="event.stopPropagation(); editar(${item.id})">✏️</button>
-                <button onclick="event.stopPropagation(); apagar(${item.id})">🗑️</button>
-            </td>
-        `;
-        corpo.appendChild(tr);
-    });
-}
-
-// Funções de UI (Dashboard, Scroll, Canvas etc.) devem seguir abaixo conforme o padrão anterior...
-// [As funções de Canvas, Edição, Apagar e Exportar continuam as mesmas do código original]
