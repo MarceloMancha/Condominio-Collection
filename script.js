@@ -228,6 +228,12 @@ function finalizarEntrega() {
         return;
     }
     
+    function salvarEAtualizar() {
+    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
+    renderizarTabela();
+    atualizarDashboard();
+}
+    
     // Pega os dados da encomenda que foi clicada na tabela
     const item = encomendas.find(e => e.id === selecionadaId);
     
