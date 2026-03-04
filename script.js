@@ -132,33 +132,32 @@ function pararLeitor() {
     }
 }
 
-// --- BUSCA DE MORADORES AO DIGITAR O APTO ---
 function buscarMoradores() {
-    const apto = document.getElementById('sala').value;
+    const numero = document.getElementById('sala').value.trim();
+    const chave = "Collection" + numero;
+
     const listaSugestoes = document.getElementById('listaSugestoesMoradores');
     const container = document.getElementById('containerSugestoes');
-    
-    // Verifica se o apto existe na nossa lista (agendaMoradores)
-    if (agendaMoradores[apto]) {
+
+    if (agendaMoradores[chave]) {
         listaSugestoes.style.display = 'block';
-        container.innerHTML = ''; // Limpa botões de buscas anteriores
-        
-        agendaMoradores[apto].moradores.forEach(m => {
+        container.innerHTML = '';
+
+        agendaMoradores[chave].moradores.forEach(m => {
             const btn = document.createElement('button');
             btn.type = "button";
             btn.className = "btn-sugestao";
             btn.innerText = m.nome;
-            
-            // Quando clica no nome, preenche os campos mas permite editar depois
+
             btn.onclick = () => {
                 document.getElementById('destinatario').value = m.nome;
                 document.getElementById('telefone').value = m.tel;
-                listaSugestoes.style.display = 'none'; // Esconde os botões após escolher
+                listaSugestoes.style.display = 'none';
             };
+
             container.appendChild(btn);
         });
     } else {
-        // Se o apto não estiver na lista, esconde as sugestões para digitar manual
         listaSugestoes.style.display = 'none';
     }
 }
@@ -214,9 +213,16 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
         enviarZap(nova, 'chegada');
     }
 
+    function salvarEAtualizar() {
+    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
+    renderizarTabela();
+    atualizarDashboard();
+
     salvarEAtualizar();
     this.reset();
     document.getElementById('listaSugestoesMoradores').style.display = 'none';
+}
+    
 });
 
 // --- FINALIZAR A ENTREGA COM VALIDAÇÃO DE PIN ---
@@ -233,7 +239,10 @@ function finalizarEntrega() {
     const item = encomendas.find(e => e.id === selecionadaId);
     
     // Busca o PIN correto na agenda. Se não achar o apto, usa o PIN PADRÃO
-    const pinCorreto = agendaMoradores[item.sala] ? agendaMoradores[item.sala].pin : CONFIG.PIN_PADRAO;
+    const chave = "Collection" + item.sala;
+const pinCorreto = agendaMoradores[chave]
+    ? agendaMoradores[chave].pin
+    : CONFIG.PIN_PADRAO;
 
     if (pinDigitado !== pinCorreto) {
         alert("❌ PIN INCORRETO! A entrega não pode ser finalizada sem o código do morador.");
@@ -265,48 +274,3 @@ function finalizarEntrega() {
     selecionarUnica(selecionadaId); 
 }
 
-// --- FINALIZAR A ENTREGA COM VALIDAÇÃO DE PIN ---
-function finalizarEntrega() {
-    const nomeQuemRetira = document.getElementById('nomeRec').value;
-    const pinDigitado = document.getElementById('pinConfirmacao').value;
-    
-    if(!nomeQuemRetira) {
-        alert("Por favor, informe quem está retirando a encomenda.");
-        return;
-    }
-    
-    // Pega os dados da encomenda que foi clicada na tabela
-    const item = encomendas.find(e => e.id === selecionadaId);
-    
-    // Busca o PIN correto na agenda. Se não achar o apto, usa o PIN PADRÃO
-    const pinCorreto = agendaMoradores[item.sala] ? agendaMoradores[item.sala].pin : CONFIG.PIN_PADRAO;
-
-    if (pinDigitado !== pinCorreto) {
-        alert("❌ PIN INCORRETO! A entrega não pode ser finalizada sem o código do morador.");
-        return;
-    }
-
-    // Se o PIN estiver certo, salva os dados de retirada
-    const index = encomendas.findIndex(e => e.id === selecionadaId);
-    encomendas[index].status = 'Retirado';
-    encomendas[index].quemRetirou = nomeQuemRetira;
-    encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-    
-    // Salva a imagem da assinatura do Canvas
-    const canvas = document.getElementById('canvasAssinatura');
-    encomendas[index].assinatura = canvas.toDataURL('image/jpeg', 0.5);
-
-    // Salva no banco de dados do navegador e atualiza a tela
-    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
-    
-    renderizarTabela();
-    enviarZap(encomendas[index], 'retirada'); // Envia o Zap de confirmação
-    
-    alert("Retirada confirmada com sucesso!");
-    
-    // Limpa a tela para a próxima operação
-    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
-    document.getElementById('nomeRec').value = "";
-    document.getElementById('pinConfirmacao').value = "";
-    selecionarUnica(selecionadaId); 
-}
