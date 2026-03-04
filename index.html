@@ -26,26 +26,31 @@
                         <input type="text" id="notaFiscal" required placeholder="Nota Fiscal (NF)" style="flex: 1;">
                         <button type="button" onclick="iniciarLeitor()" title="Escanear NF" style="background: #15803d; color: white; border: none; border-radius: 4px; padding: 0 10px; cursor: pointer;">📷</button>
                     </div>
-                    <select id="torre" required onchange="buscarContatoAutomatico()">
+                    <select id="torre" required onchange="buscarMoradores()">
                         <option value="">Torre</option>
                         <option value="Gate">Gate</option>
                         <option value="Way">Way</option>
                     </select>
-                    <input type="text" id="sala" required placeholder="Sala/Apto" oninput="buscarContatoAutomatico()">
+                    <input type="text" id="sala" required placeholder="Apto" oninput="buscarMoradores()">
                 </div>
 
+                <div id="listaSugestoesMoradores" style="display:none; margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <p style="font-size: 0.8em; font-weight: bold; color: #64748b; margin-bottom: 8px;">Selecione o Morador:</p>
+                    <div id="containerSugestoes" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                </div>
+
+                <div class="campo-grupo">
+                    <input type="text" id="destinatario" required placeholder="Nome do Destinatário">
+                    <input type="tel" id="telefone" required placeholder="Telefone (WhatsApp)">
+                </div>
+                
                 <div id="area-scanner" style="display:none; margin: 10px 0; border: 2px solid #15803d; border-radius: 8px; overflow: hidden;">
                     <div id="reader"></div>
                     <button type="button" onclick="pararLeitor()" style="width: 100%; padding: 10px; background: #dc2626; color: white; border: none; cursor: pointer;">Fechar Câmera</button>
                 </div>
 
-                <div class="campo-grupo">
-                    <input type="text" id="destinatario" required placeholder="Nome do Destinatário">
-                    <input type="tel" id="telefone" placeholder="Telefone (Auto)">
-                </div>
-                
-                <p style="font-size: 0.8em; color: #666; margin-top: 5px;">
-                    💡 O aviso de chegada será enviado automaticamente via WhatsApp.
+                <p style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                    💡 O aviso será enviado para o WhatsApp do morador selecionado.
                 </p>
 
                 <div style="display: flex; gap: 10px;">
@@ -59,7 +64,7 @@
             <h3>🔍 Filtros e Busca</h3>
             <div class="filtros-grid">
                 <input type="date" id="filtroData" oninput="aplicarFiltros()">
-                <input type="text" id="filtroSala" placeholder="Sala" oninput="aplicarFiltros()">
+                <input type="text" id="filtroSala" placeholder="Apto" oninput="aplicarFiltros()">
                 <input type="text" id="filtroNome" placeholder="Nome" oninput="aplicarFiltros()">
                 <input type="text" id="filtroNF" placeholder="NF" oninput="aplicarFiltros()">
                 <select id="filtroStatus" onchange="aplicarFiltros()">
@@ -105,7 +110,7 @@
         <div id="resultadoBusca" class="container">
             <h3>📌 Detalhes da Seleção</h3>
             <div id="resultadoConteudo">
-                <p class="placeholder-text">Selecione uma encomenda na tabela para operar.</p>
+                <p class="placeholder-text">Selecione uma encomenda na tabela.</p>
             </div>
         </div>
 
@@ -118,8 +123,8 @@
             </div>
 
             <div style="margin-bottom: 15px;">
-                <label style="display:block; font-size: 0.85em; margin-bottom: 5px; color: #dc2626; font-weight: bold;">PIN de Segurança do Apto:</label>
-                <input type="password" id="pinConfirmacao" placeholder="Digite o PIN do morador" maxlength="4" style="width:100%; text-align: center; font-size: 1.2em; letter-spacing: 5px;">
+                <label style="display:block; font-size: 0.85em; margin-bottom: 5px; color: #dc2626; font-weight: bold;">PIN do Apartamento:</label>
+                <input type="password" id="pinConfirmacao" placeholder="PIN de 4 dígitos" maxlength="4" style="width:100%; text-align: center; font-size: 1.2em; letter-spacing: 5px;">
             </div>
 
             <label>Assinatura Digital:</label>
