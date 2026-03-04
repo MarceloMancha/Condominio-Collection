@@ -15,44 +15,34 @@
 
 <main>
     <div class="coluna-dados">
-        
         <div id="blocoRecebimento" class="container">
             <h2 id="tituloForm">📦 Novo Recebimento</h2>
             <form id="formRecebimento">
                 <input type="hidden" id="editId">
                 
                 <div class="campo-grupo">
-                    <div style="display: flex; gap: 5px; flex: 1.5;">
+                    <div style="display: flex; gap: 5px; flex: 2;">
                         <input type="text" id="notaFiscal" required placeholder="Nota Fiscal (NF)" style="flex: 1;">
-                        <button type="button" onclick="iniciarLeitor()" title="Escanear NF" style="background: #15803d; color: white; border: none; border-radius: 4px; padding: 0 10px; cursor: pointer;">📷</button>
+                        <button type="button" id="btnAbrirCamera" onclick="alternarCamera()" title="Abrir Câmera" style="background: #15803d; color: white; border: none; border-radius: 4px; padding: 0 15px; cursor: pointer;">📷</button>
                     </div>
-                    <select id="torre" required onchange="buscarMoradores()">
-                        <option value="">Torre</option>
-                        <option value="Gate">Gate</option>
-                        <option value="Way">Way</option>
-                    </select>
-                    <input type="text" id="sala" required placeholder="Apto" oninput="buscarMoradores()">
+                    <input type="number" id="sala" required placeholder="Apto" oninput="buscarMoradores()" style="flex: 1;">
+                </div>
+
+                <div id="area-scanner" style="display:none; margin: 10px 0; border: 2px solid #15803d; border-radius: 8px; overflow: hidden; position: relative;">
+                    <div id="reader" style="width: 100%;"></div>
+                    <button type="button" onclick="pararLeitor()" style="width: 100%; padding: 10px; background: #dc2626; color: white; border: none; cursor: pointer; font-weight: bold;">❌ Fechar Câmera e Digitar Manual</button>
                 </div>
 
                 <div id="listaSugestoesMoradores" style="display:none; margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                    <p style="font-size: 0.8em; font-weight: bold; color: #64748b; margin-bottom: 8px;">Selecione o Morador:</p>
+                    <p style="font-size: 0.8em; font-weight: bold; color: #64748b; margin-bottom: 8px;">Moradores encontrados no apto:</p>
                     <div id="containerSugestoes" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
                 </div>
 
                 <div class="campo-grupo">
                     <input type="text" id="destinatario" required placeholder="Nome do Destinatário">
-                    <input type="tel" id="telefone" required placeholder="Telefone (WhatsApp)">
+                    <input type="tel" id="telefone" required placeholder="WhatsApp">
                 </div>
                 
-                <div id="area-scanner" style="display:none; margin: 10px 0; border: 2px solid #15803d; border-radius: 8px; overflow: hidden;">
-                    <div id="reader"></div>
-                    <button type="button" onclick="pararLeitor()" style="width: 100%; padding: 10px; background: #dc2626; color: white; border: none; cursor: pointer;">Fechar Câmera</button>
-                </div>
-
-                <p style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                    💡 O aviso será enviado para o WhatsApp do morador selecionado.
-                </p>
-
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" id="btnSalvar" class="btn-principal">Salvar e Notificar</button>
                     <button type="button" id="btnCancelarEdit" class="btn-secundario" style="display:none; background:#666;" onclick="cancelarEdicao()">Cancelar</button>
@@ -61,21 +51,16 @@
         </div>
 
         <div id="secaoFiltros" class="container">
-            <h3>🔍 Filtros e Busca</h3>
+            <h3>🔍 Filtros</h3>
             <div class="filtros-grid">
                 <input type="date" id="filtroData" oninput="aplicarFiltros()">
                 <input type="text" id="filtroSala" placeholder="Apto" oninput="aplicarFiltros()">
                 <input type="text" id="filtroNome" placeholder="Nome" oninput="aplicarFiltros()">
-                <input type="text" id="filtroNF" placeholder="NF" oninput="aplicarFiltros()">
                 <select id="filtroStatus" onchange="aplicarFiltros()">
                     <option value="">Status: Todos</option>
                     <option value="Aguardando retirada">Aguardando</option>
                     <option value="Retirado">Retirado</option>
                 </select>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button onclick="visualizarTudo()" class="btn-secundario" style="flex: 1; background: #64748b; color: white;">🧹 Limpar</button>
-                <button onclick="exportarCSV()" class="btn-secundario" style="flex: 1; background: #0ea5e9; color: white;">📊 Planilha</button>
             </div>
         </div>
 
@@ -86,19 +71,10 @@
         </div>
 
         <div class="container">
-            <h3>📋 Histórico de Movimentação</h3>
             <div class="table-responsive">
                 <table>
                     <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>NF</th>
-                            <th>Apto</th>
-                            <th>Torre</th>
-                            <th>Destinatário</th>
-                            <th>Status</th>
-                            <th>Ações</th>
-                        </tr>
+                        <tr><th>Data</th><th>NF</th><th>Apto</th><th>Destinatário</th><th>Status</th><th>Ações</th></tr>
                     </thead>
                     <tbody id="listaCorpo"></tbody>
                 </table>
@@ -108,40 +84,22 @@
 
     <div class="lateral-acoes">
         <div id="resultadoBusca" class="container">
-            <h3>📌 Detalhes da Seleção</h3>
-            <div id="resultadoConteudo">
-                <p class="placeholder-text">Selecione uma encomenda na tabela.</p>
-            </div>
+            <h3>📌 Detalhes</h3>
+            <div id="resultadoConteudo"><p class="placeholder-text">Selecione uma encomenda.</p></div>
         </div>
 
         <div id="blocoConfirmarRetirada" class="container" style="display:none;">
-            <h3 style="color:#15803d; margin-top:0">✅ Confirmar Retirada</h3>
-            
-            <div style="margin-bottom: 15px;">
-                <label style="display:block; font-size: 0.85em; margin-bottom: 5px;">Quem está retirando?</label>
-                <input type="text" id="nomeRec" placeholder="Nome completo" style="width:100%;">
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <label style="display:block; font-size: 0.85em; margin-bottom: 5px; color: #dc2626; font-weight: bold;">PIN do Apartamento:</label>
-                <input type="password" id="pinConfirmacao" placeholder="PIN de 4 dígitos" maxlength="4" style="width:100%; text-align: center; font-size: 1.2em; letter-spacing: 5px;">
-            </div>
-
-            <label>Assinatura Digital:</label>
-            <div style="border: 1px dashed #ccc; background: #fff; margin: 10px 0; border-radius: 4px;">
-                <canvas id="canvasAssinatura" width="340" height="150" style="width:100%; cursor: crosshair;"></canvas>
-            </div>
-            
-            <div style="display: flex; gap: 5px;">
+            <h3 style="color:#15803d;">✅ Confirmar Entrega</h3>
+            <input type="text" id="nomeRec" placeholder="Quem retirou?" style="width:100%; margin-bottom:10px;">
+            <input type="password" id="pinConfirmacao" placeholder="PIN do Apto" maxlength="4" style="width:100%; text-align: center; font-size: 1.2em; letter-spacing: 5px; margin-bottom:10px;">
+            <canvas id="canvasAssinatura" width="340" height="150" style="border:1px solid #ccc; width:100%;"></canvas>
+            <div style="display: flex; gap: 5px; margin-top:10px;">
                 <button onclick="limparAssinatura()" class="btn-secundario" style="flex: 1;">Limpar</button>
-                <button onclick="finalizarEntrega()" class="btn-principal" style="flex: 2; background: #15803d;">Finalizar Entrega</button>
+                <button onclick="finalizarEntrega()" class="btn-principal" style="flex: 2;">Finalizar</button>
             </div>
         </div>
     </div>
 </main>
-
-<button id="btnTopo" onclick="voltarAoTopo()" style="display:none; position:fixed; bottom:20px; right:20px; background:#15803d; color:white; border:none; border-radius:50%; width:50px; height:50px; cursor:pointer; font-size:24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000;">↑</button>
-
 <script src="script.js"></script>
 </body>
 </html>
