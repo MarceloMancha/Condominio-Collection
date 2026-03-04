@@ -86,30 +86,43 @@ const agendaMoradores = {
 };
 
 
+};
+
 let encomendas = JSON.parse(localStorage.getItem(CONFIG.ID_CLIENTE)) || [];
 let selecionadaId = null;
-let html5QrCode; // Variável da câmera
+let html5QrCode;
 
+
+// ================= SALVAR E ATUALIZAR (AGORA GLOBAL) =================
+function salvarEAtualizar() {
+    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
+    renderizarTabela();
+    atualizarDashboard();
+}
+
+
+// ================= INICIAR =================
 window.onload = () => {
     renderizarTabela();
     atualizarDashboard();
 };
 
+
+// ================= CAMERA =================
 async function alternarCamera() {
     const area = document.getElementById('area-scanner');
-    
-    // Se a câmera estiver fechada, vamos abrir
+
     if (area.style.display === 'none') {
         area.style.display = 'block';
         html5QrCode = new Html5Qrcode("reader");
-        
+
         try {
             await html5QrCode.start(
-                { facingMode: "environment" }, // Usa a câmera de trás do celular
+                { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 150 } },
                 (decodedText) => {
-                    document.getElementById('notaFiscal').value = decodedText; // Preenche a NF
-                    pararLeitor(); // Fecha a câmera após ler
+                    document.getElementById('notaFiscal').value = decodedText;
+                    pararLeitor();
                 }
             );
         } catch (err) {
@@ -117,7 +130,7 @@ async function alternarCamera() {
             area.style.display = 'none';
         }
     } else {
-        pararLeitor(); // Se clicar de novo enquanto aberta, ela fecha
+        pararLeitor();
     }
 }
 
@@ -132,8 +145,10 @@ function pararLeitor() {
     }
 }
 
+
+// ================= BUSCAR MORADORES =================
 function buscarMoradores() {
-    const numero = document.getElementById('sala').value.trim();
+    const numero = document.getElementById('sala').value.trim().replace("Collection", "");
     const chave = "Collection" + numero;
 
     const listaSugestoes = document.getElementById('listaSugestoesMoradores');
@@ -162,29 +177,30 @@ function buscarMoradores() {
     }
 }
 
-// --- FUNÇÃO DO WHATSAPP COM BOM DIA/TARDE/NOITE E NEGRITO ---
+
+// ================= WHATSAPP =================
 function enviarZap(item, tipo) {
     if (!item.telefone) return;
-    
-    const tel = item.telefone.replace(/\D/g, ''); // Limpa parênteses e traços
+
+    const tel = item.telefone.replace(/\D/g, '');
     const hora = new Date().getHours();
     let saudacao = (hora < 12) ? "Bom dia" : (hora < 18) ? "Boa tarde" : "Boa noite";
 
     let msg = "";
     if (tipo === 'chegada') {
-        // Mensagem de Aviso de Chegada
         msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda (NF: *${item.nf}*) chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApartamento: *${item.sala}*.\n\nPor favor, retire assim que possível na Portaria.`;
     } else {
-        // Mensagem de Confirmação de Retirada
         msg = `✅ *Confirmação de Retirada*\n${saudacao}, *${item.destinatario}*!\n\nA encomenda (NF: *${item.nf}*) do apartamento *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
     }
 
     window.open(`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
+
 // ================= CADASTRO =================
 document.getElementById('formRecebimento').addEventListener('submit', function(e) {
     e.preventDefault();
+
     const idExistente = document.getElementById('editId').value;
 
     const dados = {
@@ -213,63 +229,55 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
         enviarZap(nova, 'chegada');
     }
 
-    salvarEAtualizar(); // ✅ agora chama corretamente
+    salvarEAtualizar();
     this.reset();
     document.getElementById('listaSugestoesMoradores').style.display = 'none';
 });
 
-// --- FINALIZAR A ENTREGA COM VALIDAÇÃO DE PIN ---
+
+// ================= FINALIZAR ENTREGA =================
 function finalizarEntrega() {
+
     const nomeQuemRetira = document.getElementById('nomeRec').value;
     const pinDigitado = document.getElementById('pinConfirmacao').value;
-    
-    if(!nomeQuemRetira) {
+
+    if (!nomeQuemRetira) {
         alert("Por favor, informe quem está retirando a encomenda.");
         return;
     }
-    
-    function salvarEAtualizar() {
-    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
-    renderizarTabela();
-    atualizarDashboard();
-}
-    
-    // Pega os dados da encomenda que foi clicada na tabela
+
     const item = encomendas.find(e => e.id === selecionadaId);
-    
-    // Busca o PIN correto na agenda. Se não achar o apto, usa o PIN PADRÃO
-    const chave = "Collection" + item.sala;
-const pinCorreto = agendaMoradores[chave]
-    ? agendaMoradores[chave].pin
-    : CONFIG.PIN_PADRAO;
+    if (!item) return;
+
+    const numero = item.sala.replace("Collection", "");
+    const chave = "Collection" + numero;
+
+    const pinCorreto = agendaMoradores[chave]
+        ? agendaMoradores[chave].pin
+        : CONFIG.PIN_PADRAO;
 
     if (pinDigitado !== pinCorreto) {
         alert("❌ PIN INCORRETO! A entrega não pode ser finalizada sem o código do morador.");
         return;
     }
 
-    // Se o PIN estiver certo, salva os dados de retirada
     const index = encomendas.findIndex(e => e.id === selecionadaId);
+
     encomendas[index].status = 'Retirado';
     encomendas[index].quemRetirou = nomeQuemRetira;
     encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-    
-    // Salva a imagem da assinatura do Canvas
+
     const canvas = document.getElementById('canvasAssinatura');
     encomendas[index].assinatura = canvas.toDataURL('image/jpeg', 0.5);
 
-    // Salva no banco de dados do navegador e atualiza a tela
-    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
-    
-    renderizarTabela();
-    enviarZap(encomendas[index], 'retirada'); // Envia o Zap de confirmação
-    
+    salvarEAtualizar();
+    enviarZap(encomendas[index], 'retirada');
+
     alert("Retirada confirmada com sucesso!");
-    
-    // Limpa a tela para a próxima operação
+
     document.getElementById('blocoConfirmarRetirada').style.display = 'none';
     document.getElementById('nomeRec').value = "";
     document.getElementById('pinConfirmacao').value = "";
-    selecionarUnica(selecionadaId); 
-}
 
+    selecionarUnica(selecionadaId);
+}
