@@ -1,4 +1,4 @@
-const cacheName = 'collection-v1';
+const cacheName = 'collection-v2';
 const assets = [
 './',
 './index.html',
@@ -15,19 +15,9 @@ return cache.addAll(assets);
 );
 });
 
-self.addEventListener('activate', event => {
-event.waitUntil(
-caches.keys().then(keys => {
-return Promise.all(keys
-.filter(key => key !== cacheName)
-.map(key => caches.delete(key))
-);
-})
-);
-});
-
 self.addEventListener('fetch', event => {
-if (event.request.url.indexOf('unpkg.com') > -1) {
+// Isso aqui libera a câmera para funcionar:
+if (event.request.url.includes('unpkg.com')) {
 return fetch(event.request);
 }
 event.respondWith(
