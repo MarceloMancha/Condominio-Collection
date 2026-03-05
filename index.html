@@ -115,13 +115,20 @@
     </div>
 </main>
 
-<script src="script.js"></script>
 <script>
-if ('serviceWorker' in navigator) {
-navigator.serviceWorker.register('./sw.js')
-.then(function() { console.log("App Pronto!"); })
-.catch(function(err) { console.log("Erro:", err); });
-}
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.onupdatefound = () => {
+        const installingWorker = reg.installing;
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Isso força o navegador a carregar a versão nova na hora
+            window.location.reload();
+          }
+        };
+      };
+    });
+  }
 </script>
 </body>
 </html>
