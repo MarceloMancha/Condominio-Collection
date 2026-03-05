@@ -168,21 +168,42 @@ function buscarMoradores() {
     }
 }
 
-// ================= WHATSAPP (CORRIGIDO COM NEGRITO E SAUDAÇÃO) =================
+// ================= WHATSAPP (CORRIGIDO E TESTADO) =================
 function enviarZap(item, tipo) {
     if (!item.telefone) return;
+    
     const tel = item.telefone.replace(/\D/g, '');
-    const hora = new Date().getHours();
-    let saudacao = (hora < 12) ? "Bom dia" : (hora < 18) ? "Boa tarde" : "Boa noite";
+    const agora = new Date();
+    const hora = agora.getHours();
+    
+    // Define a saudação corretamente
+    let saudacao = "";
+    if (hora >= 5 && hora < 12) {
+        saudacao = "Bom dia";
+    } else if (hora >= 12 && hora < 18) {
+        saudacao = "Boa tarde";
+    } else {
+        saudacao = "Boa noite";
+    }
     
     let msg = "";
+    
     if (tipo === 'chegada') {
-        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda NF: *${item.nf}* chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApto: *${item.sala}*.\n\nPor favor, retire assim que possível.`;
+        // Mensagem de Chegada com Negritos e Saudação
+        msg = `${saudacao}, *${item.destinatario}*! 📦\n\n`;
+        msg += `Sua encomenda NF: *${item.nf}* chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\n`;
+        msg += `Apto: *${item.sala}*.\n\n`;
+        msg += `Por favor, retire assim que possível.`;
     } else {
-        // Mensagem de Retirada com campos em negrito conforme solicitado
-        msg = `✅ *Confirmação de Retirada*\n${saudacao}, *${item.destinatario}*!\n\nA encomenda NF: *${item.nf}* do apto *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
+        // Mensagem de Retirada com Negritos, Saudação e Nome de quem retirou
+        msg = `✅ *Confirmação de Retirada*\n\n`;
+        msg += `${saudacao}, *${item.destinatario}*!\n\n`;
+        msg += `A encomenda NF: *${item.nf}* do apto *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
     }
-    window.open(`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`, '_blank');
+
+    // O encodeURIComponent é essencial para que o WhatsApp entenda as quebras de linha e acentos
+    const linkZap = `https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`;
+    window.open(linkZap, '_blank');
 }
 
 // ================= CADASTRO E EDIÇÃO =================
