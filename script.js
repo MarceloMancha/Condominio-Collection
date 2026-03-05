@@ -168,16 +168,18 @@ function buscarMoradores() {
     }
 }
 
-// ================= WHATSAPP =================
+// ================= WHATSAPP (CORRIGIDO COM NEGRITO E SAUDAÇÃO) =================
 function enviarZap(item, tipo) {
     if (!item.telefone) return;
     const tel = item.telefone.replace(/\D/g, '');
     const hora = new Date().getHours();
     let saudacao = (hora < 12) ? "Bom dia" : (hora < 18) ? "Boa tarde" : "Boa noite";
+    
     let msg = "";
     if (tipo === 'chegada') {
-        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda (NF: *${item.nf}*) chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApto: *${item.sala}*.\n\nPor favor, retire assim que possível.`;
+        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda NF: *${item.nf}* chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApto: *${item.sala}*.\n\nPor favor, retire assim que possível.`;
     } else {
+        // Mensagem de Retirada com campos em negrito conforme solicitado
         msg = `✅ *Confirmação de Retirada*\n${saudacao}, *${item.destinatario}*!\n\nA encomenda NF: *${item.nf}* do apto *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
     }
     window.open(`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`, '_blank');
@@ -245,7 +247,7 @@ function excluirEncomenda(id) {
     }
 }
 
-// ================= RENDERIZAR TABELA (ORDEM CRESCENTE APTO) =================
+// ================= RENDERIZAR TABELA (ORDEM CRESCENTE REAL) =================
 function renderizarTabela() {
     const corpo = document.getElementById('listaCorpo');
     const fData = document.getElementById('filtroData').value;
@@ -258,20 +260,15 @@ function renderizarTabela() {
 
     let filtradas = encomendas.filter(e => {
         const bData = !fData || e.data.split('/').reverse().join('-') === fData;
-        const bSala = !fSala || e.sala.toLowerCase().includes(fSala);
-        const bNF = !fNF || e.nf.toLowerCase().includes(fNF);
+        const bSala = !fSala || e.sala.toString().toLowerCase().includes(fSala);
+        const bNF = !fNF || e.nf.toString().toLowerCase().includes(fNF);
         const bNome = !fNome || e.destinatario.toLowerCase().includes(fNome);
         const bStatus = !fStatus || e.status === fStatus;
         return bData && bSala && bNF && bNome && bStatus;
     });
 
-    // Ordenação: Primeiro Data (Recente), depois Apto (Crescente Numérico)
+    // Ordenação Crescente por Apartamento
     filtradas.sort((a, b) => {
-        let dA = a.data.split('/').reverse().join('');
-        let dB = b.data.split('/').reverse().join('');
-        if (dA !== dB) return dB.localeCompare(dA);
-        
-        // Converte "11" ou "Collection11" apenas para número para ordenar certo
         const nA = parseInt(a.sala.toString().replace(/\D/g, '')) || 0;
         const nB = parseInt(b.sala.toString().replace(/\D/g, '')) || 0;
         return nA - nB;
@@ -296,7 +293,7 @@ function renderizarTabela() {
     });
 }
 
-// ================= FINALIZAR ENTREGA (FUNDO BRANCO CORRIGIDO) =================
+// ================= FINALIZAR ENTREGA (CORREÇÃO FUNDO BRANCO) =================
 function finalizarEntrega() {
     const nomeRec = document.getElementById('nomeRec').value;
     const pin = document.getElementById('pinConfirmacao').value;
@@ -311,18 +308,23 @@ function finalizarEntrega() {
     const canvas = document.getElementById('canvasAssinatura');
     const tempCanvas = document.createElement('canvas');
     const tCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+    tempCanvas.width = canvas.width; 
+    tempCanvas.height = canvas.height;
     
-    // FORÇA FUNDO BRANCO PARA NÃO FICAR PRETO
-    tCtx.fillStyle = "#ffffff"; 
-    tCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height);
+    // 1. Pinta o fundo de branco sólido ANTES de copiar o desenho
+    tCtx.fillStyle = "#FFFFFF"; 
+    tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // 2. Copia o desenho do canvas original
     tCtx.drawImage(canvas, 0, 0);
 
     const index = encomendas.findIndex(e => e.id === selecionadaId);
     encomendas[index].status = 'Retirado';
     encomendas[index].quemRetirou = nomeRec;
     encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 0.8);
+    
+    // 3. Salva como JPEG (que não suporta transparência) para garantir fundo branco
+    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 1.0);
 
     salvarEAtualizar();
     enviarZap(encomendas[index], 'retirada');
@@ -344,7 +346,9 @@ function selecionarUnica(id) {
     
     if (enc.status === 'Retirado') {
         html += `<p style="color:green; font-weight:bold;">✅ Retirado por: ${enc.quemRetirou}</p><p>🕒 ${enc.dataRetirada}</p>
-                 <img src="${enc.assinatura}" style="width:100%; border:1px solid #ddd; margin-top:5px; background:white;">`;
+                 <div style="background:white; padding:5px; border:1px solid #ddd; margin-top:5px;">
+                    <img src="${enc.assinatura}" style="width:100%; display:block;">
+                 </div>`;
         bloco.style.display = 'none';
     } else {
         html += `<p style="color:orange; font-weight:bold;">⏳ Aguardando na portaria</p>`;
@@ -373,7 +377,6 @@ function limparFiltros() {
 }
 
 function exportarCSV() {
-    // \ufeff garante que o Excel entenda os acentos (UTF-8 com BOM)
     let csv = "\ufeffData;NF;Apto;Destinatario;Status;Quem Retirou;Data Retirada\n";
     encomendas.forEach(e => {
         csv += `${e.data};${e.nf};${e.sala};${e.destinatario};${e.status};${e.quemRetirou};${e.dataRetirada}\n`;
@@ -382,10 +385,8 @@ function exportarCSV() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", "encomendas_collection.csv");
-    document.body.appendChild(link);
+    link.download = "encomendas_collection.csv";
     link.click();
-    document.body.removeChild(link);
 }
 
 // ================= CANVAS =================
@@ -395,7 +396,7 @@ function configurarCanvas() {
     if(!canvas) return;
     const ctx = canvas.getContext('2d');
     
-    // Limpa e prepara fundo branco inicial
+    // Prepara o canvas com fundo branco inicial
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -411,7 +412,7 @@ function configurarCanvas() {
         const pos = getPos(e);
         ctx.beginPath(); 
         ctx.moveTo(pos.x, pos.y);
-        if(e.type === 'touchstart') e.preventDefault();
+        if(e.type.startsWith('touch')) e.preventDefault();
     };
 
     const mover = (e) => {
@@ -419,15 +420,16 @@ function configurarCanvas() {
         const pos = getPos(e);
         ctx.lineTo(pos.x, pos.y);
         ctx.strokeStyle = "black";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3; // Linha um pouco mais grossa para ver melhor
+        ctx.lineCap = "round";
         ctx.stroke();
-        if(e.type === 'touchmove') e.preventDefault();
+        if(e.type.startsWith('touch')) e.preventDefault();
     };
 
     canvas.addEventListener('mousedown', iniciar);
-    canvas.addEventListener('touchstart', iniciar);
+    canvas.addEventListener('touchstart', iniciar, {passive: false});
     canvas.addEventListener('mousemove', mover);
-    canvas.addEventListener('touchmove', mover);
+    canvas.addEventListener('touchmove', mover, {passive: false});
     window.addEventListener('mouseup', () => desenhando = false);
     window.addEventListener('touchend', () => desenhando = false);
 }
@@ -437,4 +439,5 @@ function limparAssinatura() {
     const ctx = c.getContext('2d');
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, c.width, c.height);
+    ctx.beginPath();
 }
