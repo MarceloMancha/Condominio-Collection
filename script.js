@@ -284,3 +284,145 @@ function finalizarEntrega() {
 
     if (typeof selecionarUnica === "function") selecionarUnica(selecionadaId);
 }
+// ================= RENDERIZAR TABELA =================
+function renderizarTabela() {
+    const corpo = document.getElementById('listaCorpo');
+    const filtroData = document.getElementById('filtroData').value;
+    const filtroSala = document.getElementById('filtroSala').value.toLowerCase();
+    const filtroNome = document.getElementById('filtroNome').value.toLowerCase();
+    const filtroStatus = document.getElementById('filtroStatus').value;
+
+    corpo.innerHTML = '';
+
+    // Filtrar e mostrar as encomendas
+    const filtradas = encomendas.filter(enc => {
+        const bateData = !filtroData || enc.data.split('/').reverse().join('-') === filtroData;
+        const bateSala = !filtroSala || enc.sala.toLowerCase().includes(filtroSala);
+        const bateNome = !filtroNome || enc.destinatario.toLowerCase().includes(filtroNome);
+        const bateStatus = !filtroStatus || enc.status === filtroStatus;
+        return bateData && bateSala && bateNome && bateStatus;
+    });
+
+    // Inverter para mostrar a mais recente primeiro
+    filtradas.reverse().forEach(enc => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => selecionarUnica(enc.id);
+        
+        const classeStatus = enc.status === 'Retirado' ? 'status-retirado' : 'status-aguardando';
+
+        tr.innerHTML = `
+            <td>${enc.data}</td>
+            <td>${enc.nf}</td>
+            <td>${enc.sala}</td>
+            <td>${enc.destinatario}</td>
+            <td><span class="badge ${classeStatus}">${enc.status}</span></td>
+            <td><button class="btn-secundario" onclick="event.stopPropagation(); excluirEncomenda(${enc.id})">🗑️</button></td>
+        `;
+        corpo.appendChild(tr);
+    });
+}
+
+// ================= ATUALIZAR DASHBOARD =================
+function atualizarDashboard() {
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const totalHoje = encomendas.filter(e => e.data === hoje).length;
+    const pendentes = encomendas.filter(e => e.status === 'Aguardando retirada').length;
+    const entregues = encomendas.filter(e => e.status === 'Retirado').length;
+
+    document.getElementById('dashTotal').innerText = totalHoje;
+    document.getElementById('dashAguardando').innerText = pendentes;
+    document.getElementById('dashRetirados').innerText = entregues;
+}
+
+// ================= SELECIONAR UNICA (DETALHES) =================
+function selecionarUnica(id) {
+    selecionadaId = id;
+    const enc = encomendas.find(e => e.id === id);
+    if (!enc) return;
+
+    const conteudo = document.getElementById('resultadoConteudo');
+    const blocoConfirmar = document.getElementById('blocoConfirmarRetirada');
+
+    let html = `
+        <div class="detalhes-enc">
+            <p><strong>Status:</strong> ${enc.status}</p>
+            <p><strong>NF:</strong> ${enc.nf}</p>
+            <p><strong>Destinatário:</strong> ${enc.destinatario}</p>
+            <p><strong>WhatsApp:</strong> ${enc.telefone}</p>
+            <hr>
+    `;
+
+    if (enc.status === 'Retirado') {
+        html += `
+            <p style="color: green;"><strong>Retirado por:</strong> ${enc.quemRetirou}</p>
+            <p><strong>Data/Hora:</strong> ${enc.dataRetirada}</p>
+            <p><strong>Assinatura:</strong></p>
+            <img src="${enc.assinatura}" style="width:100%; border:1px solid #eee; border-radius:8px;">
+        `;
+        blocoConfirmar.style.display = 'none';
+    } else {
+        html += `<p class="alerta">Aguardando retirada na portaria.</p>`;
+        blocoConfirmar.style.display = 'block';
+        // Iniciar canvas se necessário
+        setTimeout(configurarCanvas, 100);
+    }
+
+    html += `</div>`;
+    conteudo.innerHTML = html;
+}
+
+// ================= FILTROS =================
+function aplicarFiltros() {
+    renderizarTabela();
+}
+
+// ================= EXCLUIR =================
+function excluirEncomenda(id) {
+    if (confirm("Deseja realmente excluir este registro?")) {
+        encomendas = encomendas.filter(e => e.id !== id);
+        salvarEAtualizar();
+        document.getElementById('resultadoConteudo').innerHTML = '<p class="placeholder-text">Selecione uma encomenda.</p>';
+        document.getElementById('blocoConfirmarRetirada').style.display = 'none';
+    }
+}
+
+// ================= LÓGICA DO CANVAS (ASSINATURA) =================
+let desenhando = false;
+function configurarCanvas() {
+    const canvas = document.getElementById('canvasAssinatura');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Suporte para Mouse e Touch
+    const iniciar = (e) => { desenhando = true; desenhar(e); };
+    const parar = () => { desenhando = false; ctx.beginPath(); };
+    
+    const desenhar = (e) => {
+        if (!desenhando) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX || e.touches[0].clientX) - rect.left;
+        const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000';
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    canvas.onmousedown = iniciar;
+    canvas.onmouseup = parar;
+    canvas.onmousemove = desenhar;
+    canvas.ontouchstart = iniciar;
+    canvas.ontouchend = parar;
+    canvas.ontouchmove = desenhar;
+}
+
+function limparAssinatura() {
+    const canvas = document.getElementById('canvasAssinatura');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
