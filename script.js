@@ -2,11 +2,10 @@
 const CONFIG = {
     NOME_SISTEMA: "Condomínio Collection",
     ID_CLIENTE: "db_collection_v1",
-    PIN_PADRAO: "1234" // PIN caso o apto não tenha um definido na agenda
+    PIN_PADRAO: "1234"
 };
 
 // ================= AGENDA COM PIN E MORADORES =================
-// Estrutura: "TorreApto": { pin: "xxxx", moradores: [{nome, tel}] }
 const agendaMoradores = {
 "Collection11": { pin: "8456", moradores: [{ nome: "LUIS FERNANDO FERREIRA", tel: "11982580397" }, { nome: "PATRICIA SALLES GOMES", tel: "11974577723" }] },
 "Collection12": { pin: "1932", moradores: [{ nome: "IGOR FREITAS", tel: "11992929162" }, { nome: "TAMIRIS XAVIER", tel: "11974110101" }] },
@@ -83,36 +82,32 @@ const agendaMoradores = {
 "Collection192": { pin: "9382", moradores: [{ nome: "JOSE PEREIRA FERREIRA", tel: "11991239626" }, { nome: "LUCIANE GOMES DA SILVA", tel: "11988172528" }] },
 "Collection193": { pin: "1493", moradores: [{ nome: "LARISSA DE SOUZA AMORIM", tel: "9881928560" }, { nome: "LEANDRO LOURENCO OLIVEIRA", tel: "11910200809" }] },
 "Collection194": { pin: "2504", moradores: [{ nome: "EDERSON CUZZIOL", tel: "11987190926" }] }
-}; // <-- Aqui estava o erro da chave extra.
+};
 
 let encomendas = JSON.parse(localStorage.getItem(CONFIG.ID_CLIENTE)) || [];
 let selecionadaId = null;
 let html5QrCode;
 
+// ================= INICIAR =================
+window.onload = () => {
+    renderizarTabela();
+    atualizarDashboard();
+    configurarCanvas();
+};
 
 // ================= SALVAR E ATUALIZAR =================
 function salvarEAtualizar() {
     localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
-    if (typeof renderizarTabela === "function") renderizarTabela();
-    if (typeof atualizarDashboard === "function") atualizarDashboard();
+    renderizarTabela();
+    atualizarDashboard();
 }
-
-
-// ================= INICIAR =================
-window.onload = () => {
-    if (typeof renderizarTabela === "function") renderizarTabela();
-    if (typeof atualizarDashboard === "function") atualizarDashboard();
-};
-
 
 // ================= CAMERA =================
 async function alternarCamera() {
     const area = document.getElementById('area-scanner');
-
     if (area.style.display === 'none') {
         area.style.display = 'block';
         html5QrCode = new Html5Qrcode("reader");
-
         try {
             await html5QrCode.start(
                 { facingMode: "environment" },
@@ -142,15 +137,9 @@ function pararLeitor() {
     }
 }
 
-
 // ================= BUSCAR MORADORES =================
 function buscarMoradores() {
     const numero = document.getElementById('sala').value.trim();
-    if (!numero) {
-        document.getElementById('listaSugestoesMoradores').style.display = 'none';
-        return;
-    }
-
     const chave = "Collection" + numero;
     const listaSugestoes = document.getElementById('listaSugestoesMoradores');
     const container = document.getElementById('containerSugestoes');
@@ -158,19 +147,16 @@ function buscarMoradores() {
     if (agendaMoradores[chave]) {
         listaSugestoes.style.display = 'block';
         container.innerHTML = '';
-
         agendaMoradores[chave].moradores.forEach(m => {
             const btn = document.createElement('button');
             btn.type = "button";
             btn.className = "btn-sugestao";
             btn.innerText = m.nome;
-
             btn.onclick = () => {
                 document.getElementById('destinatario').value = m.nome;
                 document.getElementById('telefone').value = m.tel;
                 listaSugestoes.style.display = 'none';
             };
-
             container.appendChild(btn);
         });
     } else {
@@ -178,35 +164,27 @@ function buscarMoradores() {
     }
 }
 
-
 // ================= WHATSAPP =================
 function enviarZap(item, tipo) {
     if (!item.telefone) return;
-
     const tel = item.telefone.replace(/\D/g, '');
     const hora = new Date().getHours();
     let saudacao = (hora < 12) ? "Bom dia" : (hora < 18) ? "Boa tarde" : "Boa noite";
-
     let msg = "";
     if (tipo === 'chegada') {
-        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda (NF: *${item.nf}*) chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApartamento: *${item.sala}*.\n\nPor favor, retire assim que possível na Portaria.`;
+        msg = `${saudacao}, *${item.destinatario}*! 📦\n\nSua encomenda (NF: *${item.nf}*) chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\nApto: *${item.sala}*.\n\nPor favor, retire assim que possível.`;
     } else {
-        msg = `✅ *Confirmação de Retirada*\n${saudacao}, *${item.destinatario}*!\n\nA encomenda (NF: *${item.nf}*) do apartamento *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
+        msg = `✅ *Confirmação de Retirada*\n${saudacao}, *${item.destinatario}*!\n\nA encomenda NF: *${item.nf}* do apto *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
     }
-
     window.open(`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-
-// ================= CADASTRO =================
+// ================= CADASTRO E EDIÇÃO =================
 document.getElementById('formRecebimento').addEventListener('submit', function(e) {
     e.preventDefault();
-
     const idExistente = document.getElementById('editId').value;
-
     const dados = {
         nf: document.getElementById('notaFiscal').value,
-        // torre: document.getElementById('torre').value, // <-- Linha comentada porque 'torre' não existe no seu HTML
         sala: document.getElementById('sala').value,
         destinatario: document.getElementById('destinatario').value,
         telefone: document.getElementById('telefone').value,
@@ -215,7 +193,7 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
     if (idExistente) {
         const index = encomendas.findIndex(enc => enc.id == idExistente);
         encomendas[index] = { ...encomendas[index], ...dados };
-        if (typeof cancelarEdicao === "function") cancelarEdicao();
+        cancelarEdicao();
     } else {
         const nova = {
             id: Date.now(),
@@ -229,200 +207,192 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
         encomendas.push(nova);
         enviarZap(nova, 'chegada');
     }
-
     salvarEAtualizar();
     this.reset();
-    document.getElementById('listaSugestoesMoradores').style.display = 'none';
 });
 
-
-// ================= FINALIZAR ENTREGA =================
-function finalizarEntrega() {
-
-    const nomeQuemRetira = document.getElementById('nomeRec').value;
-    const pinDigitado = document.getElementById('pinConfirmacao').value;
-
-    if (!nomeQuemRetira) {
-        alert("Por favor, informe quem está retirando a encomenda.");
-        return;
-    }
-
-    const item = encomendas.find(e => e.id === selecionadaId);
-    if (!item) return;
-
-    const numero = item.sala.replace("Collection", "");
-    const chave = "Collection" + numero;
-
-    const pinCorreto = agendaMoradores[chave]
-        ? agendaMoradores[chave].pin
-        : CONFIG.PIN_PADRAO;
-
-    if (pinDigitado !== pinCorreto) {
-        alert("❌ PIN INCORRETO! A entrega não pode ser finalizada sem o código do morador.");
-        return;
-    }
-
-    const index = encomendas.findIndex(e => e.id === selecionadaId);
-
-    encomendas[index].status = 'Retirado';
-    encomendas[index].quemRetirou = nomeQuemRetira;
-    encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-
-    const canvas = document.getElementById('canvasAssinatura');
-    if (canvas) {
-        encomendas[index].assinatura = canvas.toDataURL('image/jpeg', 0.5);
-    }
-
-    salvarEAtualizar();
-    enviarZap(encomendas[index], 'retirada');
-
-    alert("Retirada confirmada com sucesso!");
-
-    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
-    document.getElementById('nomeRec').value = "";
-    document.getElementById('pinConfirmacao').value = "";
-
-    if (typeof selecionarUnica === "function") selecionarUnica(selecionadaId);
+function editarEncomenda(id) {
+    const enc = encomendas.find(e => e.id === id);
+    if (!enc) return;
+    document.getElementById('editId').value = enc.id;
+    document.getElementById('notaFiscal').value = enc.nf;
+    document.getElementById('sala').value = enc.sala;
+    document.getElementById('destinatario').value = enc.destinatario;
+    document.getElementById('telefone').value = enc.telefone;
+    document.getElementById('tituloForm').innerText = "✏️ Editar Encomenda";
+    document.getElementById('btnSalvar').innerText = "Salvar Alterações";
+    document.getElementById('btnCancelarEdit').style.display = "block";
+    window.scrollTo({top: 0, behavior: 'smooth'});
 }
-// ================= RENDERIZAR TABELA =================
+
+function cancelarEdicao() {
+    document.getElementById('formRecebimento').reset();
+    document.getElementById('editId').value = '';
+    document.getElementById('tituloForm').innerText = "📦 Novo Recebimento";
+    document.getElementById('btnSalvar').innerText = "Salvar e Notificar";
+    document.getElementById('btnCancelarEdit').style.display = "none";
+}
+
+function excluirEncomenda(id) {
+    if(confirm("Deseja apagar esta encomenda?")) {
+        encomendas = encomendas.filter(e => e.id !== id);
+        salvarEAtualizar();
+    }
+}
+
+// ================= RENDERIZAR TABELA (ORDEM CRESCENTE APTO) =================
 function renderizarTabela() {
     const corpo = document.getElementById('listaCorpo');
-    const filtroData = document.getElementById('filtroData').value;
-    const filtroSala = document.getElementById('filtroSala').value.toLowerCase();
-    const filtroNome = document.getElementById('filtroNome').value.toLowerCase();
-    const filtroStatus = document.getElementById('filtroStatus').value;
+    const fData = document.getElementById('filtroData').value;
+    const fSala = document.getElementById('filtroSala').value.toLowerCase();
+    const fNF = document.getElementById('filtroNF').value.toLowerCase();
+    const fNome = document.getElementById('filtroNome').value.toLowerCase();
+    const fStatus = document.getElementById('filtroStatus').value;
 
     corpo.innerHTML = '';
 
-    // Filtrar e mostrar as encomendas
-    const filtradas = encomendas.filter(enc => {
-        const bateData = !filtroData || enc.data.split('/').reverse().join('-') === filtroData;
-        const bateSala = !filtroSala || enc.sala.toLowerCase().includes(filtroSala);
-        const bateNome = !filtroNome || enc.destinatario.toLowerCase().includes(filtroNome);
-        const bateStatus = !filtroStatus || enc.status === filtroStatus;
-        return bateData && bateSala && bateNome && bateStatus;
+    let filtradas = encomendas.filter(e => {
+        const bData = !fData || e.data.split('/').reverse().join('-') === fData;
+        const bSala = !fSala || e.sala.toLowerCase().includes(fSala);
+        const bNF = !fNF || e.nf.toLowerCase().includes(fNF);
+        const bNome = !fNome || e.destinatario.toLowerCase().includes(fNome);
+        const bStatus = !fStatus || e.status === fStatus;
+        return bData && bSala && bNF && bNome && bStatus;
     });
 
-    // Inverter para mostrar a mais recente primeiro
-    filtradas.reverse().forEach(enc => {
+    // Ordenação: Primeiro Data (Recente), depois Apto (Crescente)
+    filtradas.sort((a, b) => {
+        let dA = a.data.split('/').reverse().join('');
+        let dB = b.data.split('/').reverse().join('');
+        if (dA !== dB) return dB.localeCompare(dA);
+        return parseInt(a.sala) - parseInt(b.sala);
+    });
+
+    filtradas.forEach(enc => {
         const tr = document.createElement('tr');
         tr.onclick = () => selecionarUnica(enc.id);
-        
-        const classeStatus = enc.status === 'Retirado' ? 'status-retirado' : 'status-aguardando';
-
+        const corStatus = enc.status === 'Retirado' ? '#15803d' : '#f59e0b';
         tr.innerHTML = `
             <td>${enc.data}</td>
             <td>${enc.nf}</td>
             <td>${enc.sala}</td>
             <td>${enc.destinatario}</td>
-            <td><span class="badge ${classeStatus}">${enc.status}</span></td>
-            <td><button class="btn-secundario" onclick="event.stopPropagation(); excluirEncomenda(${enc.id})">🗑️</button></td>
+            <td style="color:${corStatus}; font-weight:bold;">${enc.status}</td>
+            <td>
+                <button onclick="event.stopPropagation(); editarEncomenda(${enc.id})" class="btn-secundario" style="padding:2px 5px;">✏️</button>
+                <button onclick="event.stopPropagation(); excluirEncomenda(${enc.id})" class="btn-secundario" style="padding:2px 5px; background:#dc2626;">🗑️</button>
+            </td>
         `;
         corpo.appendChild(tr);
     });
 }
 
-// ================= ATUALIZAR DASHBOARD =================
-function atualizarDashboard() {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const totalHoje = encomendas.filter(e => e.data === hoje).length;
-    const pendentes = encomendas.filter(e => e.status === 'Aguardando retirada').length;
-    const entregues = encomendas.filter(e => e.status === 'Retirado').length;
+// ================= FINALIZAR ENTREGA (COM FUNDO BRANCO) =================
+function finalizarEntrega() {
+    const nomeRec = document.getElementById('nomeRec').value;
+    const pin = document.getElementById('pinConfirmacao').value;
+    if (!nomeRec) return alert("Quem está retirando?");
+    
+    const item = encomendas.find(e => e.id === selecionadaId);
+    const chave = "Collection" + item.sala.replace("Collection", "");
+    const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
 
-    document.getElementById('dashTotal').innerText = totalHoje;
-    document.getElementById('dashAguardando').innerText = pendentes;
-    document.getElementById('dashRetirados').innerText = entregues;
+    if (pin !== pinCorreto) return alert("PIN INCORRETO!");
+
+    const canvas = document.getElementById('canvasAssinatura');
+    const tempCanvas = document.createElement('canvas');
+    const tCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+    tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height);
+    tCtx.drawImage(canvas, 0, 0);
+
+    const index = encomendas.findIndex(e => e.id === selecionadaId);
+    encomendas[index].status = 'Retirado';
+    encomendas[index].quemRetirou = nomeRec;
+    encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
+    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 0.7);
+
+    salvarEAtualizar();
+    enviarZap(encomendas[index], 'retirada');
+    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
+    selecionarUnica(selecionadaId);
 }
 
-// ================= SELECIONAR UNICA (DETALHES) =================
+// ================= UTILITÁRIOS =================
 function selecionarUnica(id) {
     selecionadaId = id;
     const enc = encomendas.find(e => e.id === id);
-    if (!enc) return;
-
-    const conteudo = document.getElementById('resultadoConteudo');
-    const blocoConfirmar = document.getElementById('blocoConfirmarRetirada');
-
-    let html = `
-        <div class="detalhes-enc">
-            <p><strong>Status:</strong> ${enc.status}</p>
-            <p><strong>NF:</strong> ${enc.nf}</p>
-            <p><strong>Destinatário:</strong> ${enc.destinatario}</p>
-            <p><strong>WhatsApp:</strong> ${enc.telefone}</p>
-            <hr>
-    `;
-
+    const cont = document.getElementById('resultadoConteudo');
+    const bloco = document.getElementById('blocoConfirmarRetirada');
+    
+    let html = `<div style="font-size:0.9em;">
+        <p><strong>NF:</strong> ${enc.nf} | <strong>Apto:</strong> ${enc.sala}</p>
+        <p><strong>Para:</strong> ${enc.destinatario}</p><hr>`;
+    
     if (enc.status === 'Retirado') {
-        html += `
-            <p style="color: green;"><strong>Retirado por:</strong> ${enc.quemRetirou}</p>
-            <p><strong>Data/Hora:</strong> ${enc.dataRetirada}</p>
-            <p><strong>Assinatura:</strong></p>
-            <img src="${enc.assinatura}" style="width:100%; border:1px solid #eee; border-radius:8px;">
-        `;
-        blocoConfirmar.style.display = 'none';
+        html += `<p>✅ Entregue para: ${enc.quemRetirou}</p><p>🕒 ${enc.dataRetirada}</p>
+                 <img src="${enc.assinatura}" style="width:100%; border:1px solid #ddd; margin-top:5px;">`;
+        bloco.style.display = 'none';
     } else {
-        html += `<p class="alerta">Aguardando retirada na portaria.</p>`;
-        blocoConfirmar.style.display = 'block';
-        // Iniciar canvas se necessário
-        setTimeout(configurarCanvas, 100);
+        html += `<p>⏳ Aguardando retirada</p>`;
+        bloco.style.display = 'block';
+        limparAssinatura();
     }
-
-    html += `</div>`;
-    conteudo.innerHTML = html;
+    cont.innerHTML = html + `</div>`;
 }
 
-// ================= FILTROS =================
-function aplicarFiltros() {
+function atualizarDashboard() {
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    document.getElementById('dashTotal').innerText = encomendas.filter(e => e.data === hoje).length;
+    document.getElementById('dashAguardando').innerText = encomendas.filter(e => e.status === 'Aguardando retirada').length;
+    document.getElementById('dashRetirados').innerText = encomendas.filter(e => e.status === 'Retirado').length;
+}
+
+function aplicarFiltros() { renderizarTabela(); }
+
+function limparFiltros() {
+    document.querySelectorAll('#secaoFiltros input').forEach(i => i.value = '');
+    document.getElementById('filtroStatus').value = '';
     renderizarTabela();
 }
 
-// ================= EXCLUIR =================
-function excluirEncomenda(id) {
-    if (confirm("Deseja realmente excluir este registro?")) {
-        encomendas = encomendas.filter(e => e.id !== id);
-        salvarEAtualizar();
-        document.getElementById('resultadoConteudo').innerHTML = '<p class="placeholder-text">Selecione uma encomenda.</p>';
-        document.getElementById('blocoConfirmarRetirada').style.display = 'none';
-    }
+function exportarCSV() {
+    let csv = "\ufeffData;NF;Apto;Destinatario;Status;Quem Retirou;Data Retirada\n";
+    encomendas.forEach(e => {
+        csv += `${e.data};${e.nf};${e.sala};${e.destinatario};${e.status};${e.quemRetirou};${e.dataRetirada}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "encomendas_collection.csv";
+    link.click();
 }
 
-// ================= LÓGICA DO CANVAS (ASSINATURA) =================
+// ================= CANVAS =================
 let desenhando = false;
 function configurarCanvas() {
     const canvas = document.getElementById('canvasAssinatura');
-    if (!canvas) return;
+    if(!canvas) return;
     const ctx = canvas.getContext('2d');
-    
-    // Suporte para Mouse e Touch
-    const iniciar = (e) => { desenhando = true; desenhar(e); };
-    const parar = () => { desenhando = false; ctx.beginPath(); };
-    
-    const desenhar = (e) => {
-        if (!desenhando) return;
+    const getPos = (e) => {
         const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-        const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
-
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
+        return { x: (e.clientX || e.touches[0].clientX) - rect.left, y: (e.clientY || e.touches[0].clientY) - rect.top };
     };
-
-    canvas.onmousedown = iniciar;
-    canvas.onmouseup = parar;
-    canvas.onmousemove = desenhar;
-    canvas.ontouchstart = iniciar;
-    canvas.ontouchend = parar;
-    canvas.ontouchmove = desenhar;
+    const move = (e) => {
+        if(!desenhando) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y); ctx.stroke();
+    };
+    canvas.onmousedown = canvas.ontouchstart = (e) => {
+        desenhando = true; const pos = getPos(e);
+        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+        e.preventDefault();
+    };
+    canvas.onmousemove = canvas.ontouchmove = move;
+    canvas.onmouseup = canvas.ontouchend = () => desenhando = false;
 }
 
 function limparAssinatura() {
-    const canvas = document.getElementById('canvasAssinatura');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const c = document.getElementById('canvasAssinatura');
+    c.getContext('2d').clearRect(0,0,c.width,c.height);
 }
