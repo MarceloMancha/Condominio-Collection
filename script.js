@@ -139,8 +139,12 @@ function pararLeitor() {
 
 // ================= BUSCAR MORADORES =================
 function buscarMoradores() {
-    const numero = document.getElementById('sala').value.trim();
-    const chave = "Collection" + numero;
+    const num = document.getElementById('sala').value.trim();
+    if (!num) {
+        document.getElementById('listaSugestoesMoradores').style.display = 'none';
+        return;
+    }
+    const chave = "Collection" + num;
     const listaSugestoes = document.getElementById('listaSugestoesMoradores');
     const container = document.getElementById('containerSugestoes');
 
@@ -237,6 +241,7 @@ function excluirEncomenda(id) {
     if(confirm("Deseja apagar esta encomenda?")) {
         encomendas = encomendas.filter(e => e.id !== id);
         salvarEAtualizar();
+        document.getElementById('resultadoConteudo').innerHTML = '<p class="placeholder-text">Selecione uma encomenda.</p>';
     }
 }
 
@@ -260,12 +265,16 @@ function renderizarTabela() {
         return bData && bSala && bNF && bNome && bStatus;
     });
 
-    // Ordenação: Primeiro Data (Recente), depois Apto (Crescente)
+    // Ordenação: Primeiro Data (Recente), depois Apto (Crescente Numérico)
     filtradas.sort((a, b) => {
         let dA = a.data.split('/').reverse().join('');
         let dB = b.data.split('/').reverse().join('');
         if (dA !== dB) return dB.localeCompare(dA);
-        return parseInt(a.sala) - parseInt(b.sala);
+        
+        // Converte "11" ou "Collection11" apenas para número para ordenar certo
+        const nA = parseInt(a.sala.toString().replace(/\D/g, '')) || 0;
+        const nB = parseInt(b.sala.toString().replace(/\D/g, '')) || 0;
+        return nA - nB;
     });
 
     filtradas.forEach(enc => {
@@ -279,22 +288,22 @@ function renderizarTabela() {
             <td>${enc.destinatario}</td>
             <td style="color:${corStatus}; font-weight:bold;">${enc.status}</td>
             <td>
-                <button onclick="event.stopPropagation(); editarEncomenda(${enc.id})" class="btn-secundario" style="padding:2px 5px;">✏️</button>
-                <button onclick="event.stopPropagation(); excluirEncomenda(${enc.id})" class="btn-secundario" style="padding:2px 5px; background:#dc2626;">🗑️</button>
+                <button onclick="event.stopPropagation(); editarEncomenda(${enc.id})" style="cursor:pointer; background:none; border:none; font-size:1.2em;">✏️</button>
+                <button onclick="event.stopPropagation(); excluirEncomenda(${enc.id})" style="cursor:pointer; background:none; border:none; font-size:1.2em;">🗑️</button>
             </td>
         `;
         corpo.appendChild(tr);
     });
 }
 
-// ================= FINALIZAR ENTREGA (COM FUNDO BRANCO) =================
+// ================= FINALIZAR ENTREGA (FUNDO BRANCO CORRIGIDO) =================
 function finalizarEntrega() {
     const nomeRec = document.getElementById('nomeRec').value;
     const pin = document.getElementById('pinConfirmacao').value;
     if (!nomeRec) return alert("Quem está retirando?");
     
     const item = encomendas.find(e => e.id === selecionadaId);
-    const chave = "Collection" + item.sala.replace("Collection", "");
+    const chave = "Collection" + item.sala.toString().replace("Collection", "");
     const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
 
     if (pin !== pinCorreto) return alert("PIN INCORRETO!");
@@ -303,14 +312,17 @@ function finalizarEntrega() {
     const tempCanvas = document.createElement('canvas');
     const tCtx = tempCanvas.getContext('2d');
     tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-    tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height);
+    
+    // FORÇA FUNDO BRANCO PARA NÃO FICAR PRETO
+    tCtx.fillStyle = "#ffffff"; 
+    tCtx.fillRect(0,0,tempCanvas.width,tempCanvas.height);
     tCtx.drawImage(canvas, 0, 0);
 
     const index = encomendas.findIndex(e => e.id === selecionadaId);
     encomendas[index].status = 'Retirado';
     encomendas[index].quemRetirou = nomeRec;
     encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 0.7);
+    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 0.8);
 
     salvarEAtualizar();
     enviarZap(encomendas[index], 'retirada');
@@ -322,6 +334,7 @@ function finalizarEntrega() {
 function selecionarUnica(id) {
     selecionadaId = id;
     const enc = encomendas.find(e => e.id === id);
+    if(!enc) return;
     const cont = document.getElementById('resultadoConteudo');
     const bloco = document.getElementById('blocoConfirmarRetirada');
     
@@ -330,11 +343,11 @@ function selecionarUnica(id) {
         <p><strong>Para:</strong> ${enc.destinatario}</p><hr>`;
     
     if (enc.status === 'Retirado') {
-        html += `<p>✅ Entregue para: ${enc.quemRetirou}</p><p>🕒 ${enc.dataRetirada}</p>
-                 <img src="${enc.assinatura}" style="width:100%; border:1px solid #ddd; margin-top:5px;">`;
+        html += `<p style="color:green; font-weight:bold;">✅ Retirado por: ${enc.quemRetirou}</p><p>🕒 ${enc.dataRetirada}</p>
+                 <img src="${enc.assinatura}" style="width:100%; border:1px solid #ddd; margin-top:5px; background:white;">`;
         bloco.style.display = 'none';
     } else {
-        html += `<p>⏳ Aguardando retirada</p>`;
+        html += `<p style="color:orange; font-weight:bold;">⏳ Aguardando na portaria</p>`;
         bloco.style.display = 'block';
         limparAssinatura();
     }
@@ -351,21 +364,28 @@ function atualizarDashboard() {
 function aplicarFiltros() { renderizarTabela(); }
 
 function limparFiltros() {
-    document.querySelectorAll('#secaoFiltros input').forEach(i => i.value = '');
+    document.getElementById('filtroData').value = '';
+    document.getElementById('filtroSala').value = '';
+    document.getElementById('filtroNF').value = '';
+    document.getElementById('filtroNome').value = '';
     document.getElementById('filtroStatus').value = '';
     renderizarTabela();
 }
 
 function exportarCSV() {
+    // \ufeff garante que o Excel entenda os acentos (UTF-8 com BOM)
     let csv = "\ufeffData;NF;Apto;Destinatario;Status;Quem Retirou;Data Retirada\n";
     encomendas.forEach(e => {
         csv += `${e.data};${e.nf};${e.sala};${e.destinatario};${e.status};${e.quemRetirou};${e.dataRetirada}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "encomendas_collection.csv";
+    link.href = url;
+    link.setAttribute("download", "encomendas_collection.csv");
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 }
 
 // ================= CANVAS =================
@@ -374,25 +394,47 @@ function configurarCanvas() {
     const canvas = document.getElementById('canvasAssinatura');
     if(!canvas) return;
     const ctx = canvas.getContext('2d');
+    
+    // Limpa e prepara fundo branco inicial
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     const getPos = (e) => {
         const rect = canvas.getBoundingClientRect();
-        return { x: (e.clientX || e.touches[0].clientX) - rect.left, y: (e.clientY || e.touches[0].clientY) - rect.top };
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
     };
-    const move = (e) => {
+
+    const iniciar = (e) => {
+        desenhando = true; 
+        const pos = getPos(e);
+        ctx.beginPath(); 
+        ctx.moveTo(pos.x, pos.y);
+        if(e.type === 'touchstart') e.preventDefault();
+    };
+
+    const mover = (e) => {
         if(!desenhando) return;
         const pos = getPos(e);
-        ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        if(e.type === 'touchmove') e.preventDefault();
     };
-    canvas.onmousedown = canvas.ontouchstart = (e) => {
-        desenhando = true; const pos = getPos(e);
-        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-        e.preventDefault();
-    };
-    canvas.onmousemove = canvas.ontouchmove = move;
-    canvas.onmouseup = canvas.ontouchend = () => desenhando = false;
+
+    canvas.addEventListener('mousedown', iniciar);
+    canvas.addEventListener('touchstart', iniciar);
+    canvas.addEventListener('mousemove', mover);
+    canvas.addEventListener('touchmove', mover);
+    window.addEventListener('mouseup', () => desenhando = false);
+    window.addEventListener('touchend', () => desenhando = false);
 }
 
 function limparAssinatura() {
     const c = document.getElementById('canvasAssinatura');
-    c.getContext('2d').clearRect(0,0,c.width,c.height);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, c.width, c.height);
 }
