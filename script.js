@@ -205,7 +205,6 @@ document.getElementById('formRecebimento').addEventListener('submit', function(e
 
     const dados = {
         nf: document.getElementById('notaFiscal').value,
-        torre: document.getElementById('torre').value,
         sala: document.getElementById('sala').value,
         destinatario: document.getElementById('destinatario').value,
         telefone: document.getElementById('telefone').value,
