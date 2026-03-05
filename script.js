@@ -94,7 +94,6 @@ window.onload = () => {
     atualizarDashboard();
     configurarCanvas();
 
-    // MELHORIA: ESCUTA O PIN ENQUANTO DIGITA
     const inputPin = document.getElementById('pinConfirmacao');
     if(inputPin) {
         inputPin.addEventListener('input', function() {
@@ -176,7 +175,7 @@ function buscarMoradores() {
     }
 }
 
-// ================= WHATSAPP (CORRIGIDO E TESTADO) =================
+// ================= WHATSAPP COM PIN INCLUÍDO =================
 function enviarZap(item, tipo) {
     if (!item.telefone) return;
     
@@ -184,6 +183,11 @@ function enviarZap(item, tipo) {
     const agora = new Date();
     const hora = agora.getHours();
     
+    // Busca o PIN do apartamento para enviar na mensagem de chegada
+    const numApto = item.sala.toString().replace(/\D/g, '');
+    const chave = "Collection" + numApto;
+    const pinMorador = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
+
     let saudacao = "";
     if (hora >= 5 && hora < 12) {
         saudacao = "Bom dia";
@@ -199,7 +203,9 @@ function enviarZap(item, tipo) {
         msg = `${saudacao}, *${item.destinatario}*! 📦\n\n`;
         msg += `Sua encomenda NF: *${item.nf}* chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\n`;
         msg += `Apto: *${item.sala}*.\n\n`;
-        msg += `Por favor, retire assim que possível.`;
+        // MELHORIA: PIN incluído na mensagem
+        msg += `🔐 Seu PIN de retirada: *${pinMorador}*\n\n`;
+        msg += `Por favor, apresente este código ao retirar.`;
     } else {
         msg = `✅ *Confirmação de Retirada*\n\n`;
         msg += `${saudacao}, *${item.destinatario}*!\n\n`;
@@ -272,7 +278,7 @@ function excluirEncomenda(id) {
     }
 }
 
-// ================= RENDERIZAR TABELA (ORDEM CRESCENTE + MELHORIA FILTRO) =================
+// ================= RENDERIZAR TABELA =================
 function renderizarTabela() {
     const corpo = document.getElementById('listaCorpo');
     const fData = document.getElementById('filtroData').value;
@@ -298,7 +304,6 @@ function renderizarTabela() {
         return nA - nB;
     });
 
-    // MELHORIA: MOSTRA RESULTADOS DO FILTRO NA LATERAL
     const contDetalhes = document.getElementById('resultadoConteudo');
     if (filtradas.length > 0 && (fSala || fNF || fNome)) {
         let htmlFiltro = `<div style="padding:10px; background:#f0f7ff; border-radius:8px; margin-bottom:10px; border:1px solid #bae6fd;">
@@ -355,7 +360,7 @@ function validarPinInstantaneo(valor) {
     }
 }
 
-// ================= FINALIZAR ENTREGA (CORREÇÃO FUNDO BRANCO) =================
+// ================= FINALIZAR ENTREGA =================
 function finalizarEntrega() {
     const nomeRec = document.getElementById('nomeRec').value;
     const pin = document.getElementById('pinConfirmacao').value;
@@ -397,7 +402,6 @@ function selecionarUnica(id) {
     const cont = document.getElementById('resultadoConteudo');
     const bloco = document.getElementById('blocoConfirmarRetirada');
     
-    // Reset da interface de confirmação
     document.getElementById('pinConfirmacao').value = '';
     document.getElementById('pinConfirmacao').style.borderColor = "#d1d5db";
     document.getElementById('canvasAssinatura').style.display = 'none';
