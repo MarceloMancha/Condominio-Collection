@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 
@@ -29,9 +31,9 @@
                     <input type="number" id="sala" required placeholder="Apto" oninput="buscarMoradores()" style="flex: 1;" pattern="[0-9]*">
                 </div>
 
-                <div id="area-scanner" style="display:none; margin: 10px 0; border: 2px solid #15803d; border-radius: 8px; overflow: hidden; position: relative;">
+                <div id="area-scanner" style="display:none; margin: 10px 0; border: 2px solid #15803d; border-radius: 8px; overflow: hidden; position: relative; background: #000;">
                     <div id="reader" style="width: 100%;"></div>
-                    <button type="button" onclick="pararLeitor()" style="width: 100%; padding: 10px; background: #dc2626; color: white; border: none; cursor: pointer; font-weight: bold;">❌ Fechar Câmera e Digitar Manual</button>
+                    <button type="button" onclick="pararLeitor()" style="width: 100%; padding: 12px; background: #dc2626; color: white; border: none; cursor: pointer; font-weight: bold;">❌ Fechar Câmera</button>
                 </div>
 
                 <div id="listaSugestoesMoradores" style="display:none; margin-bottom: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -99,7 +101,7 @@
             <input type="text" id="nomeRec" placeholder="Quem retirou?" style="width:100%; margin-bottom:10px;">
             
             <div style="position: relative;">
-                <input type="password" id="pinConfirmacao" placeholder="PIN do Apto" maxlength="4" inputmode="numeric" autocomplete="one-time-code" style="width:100%; text-align: center; font-size: 1.2em; letter-spacing: 5px; margin-bottom:10px; border: 2px solid #d1d5db; transition: 0.3s;">
+                <input type="password" id="pinConfirmacao" oninput="validarPinInstantaneo(this.value)" placeholder="PIN do Apto" maxlength="4" inputmode="numeric" autocomplete="one-time-code" style="width:100%; text-align: center; font-size: 1.2em; letter-spacing: 5px; margin-bottom:10px; border: 2px solid #d1d5db; transition: 0.3s;">
             </div>
 
             <div id="containerAssinatura" style="margin-bottom: 10px;">
@@ -116,19 +118,71 @@
 </main>
 
 <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-      reg.onupdatefound = () => {
-        const installingWorker = reg.installing;
-        installingWorker.onstatechange = () => {
-          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Isso força o navegador a carregar a versão nova na hora
-            window.location.reload();
-          }
+  // LÓGICA DE CÂMERA BLINDADA PARA O MARCELO
+  let html5QrCode;
+
+  async function alternarCamera() {
+    const areaScanner = document.getElementById('area-scanner');
+    
+    if (areaScanner.style.display === 'none') {
+        areaScanner.style.display = 'block';
+        
+        // Se já existir uma instância, para ela antes de começar
+        if (html5QrCode) {
+            await html5QrCode.stop().catch(() => {});
+        }
+
+        html5QrCode = new Html5Qrcode("reader");
+        
+        const config = { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0 
         };
-      };
+
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config,
+            (decodedText) => {
+                // Ao ler com sucesso:
+                document.getElementById('notaFiscal').value = decodedText;
+                if (navigator.vibrate) navigator.vibrate(100);
+                pararLeitor(); // Fecha a câmera automaticamente após ler
+            },
+            (errorMessage) => { /* Erros de busca ignorados */ }
+        ).catch(err => {
+            console.error("Erro ao iniciar câmera:", err);
+            alert("Câmera não disponível ou permissão negada. Verifique se o site está em HTTPS.");
+            areaScanner.style.display = 'none';
+        });
+    } else {
+        pararLeitor();
+    }
+  }
+
+  function pararLeitor() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('area-scanner').style.display = 'none';
+        }).catch(err => {
+            document.getElementById('area-scanner').style.display = 'none';
+        });
+    } else {
+        document.getElementById('area-scanner').style.display = 'none';
+    }
+  }
+
+  // REGISTRO DO SERVICE WORKER (Para funcionar como Aplicativo)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log("Service Worker ativo!");
+        }).catch(err => console.log("Erro SW:", err));
     });
   }
 </script>
+
+<script src="script.js"></script>
+
 </body>
 </html>
