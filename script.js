@@ -84,819 +84,390 @@ const agendaMoradores = {
 "Collection194": { pin: "2504", moradores: [{ nome: "EDERSON CUZZIOL", tel: "11987190926" }] }
 };
 
+// ================= VARIÁVEIS =================
 let encomendas = JSON.parse(localStorage.getItem(CONFIG.ID_CLIENTE)) || [];
 let selecionadaId = null;
-let html5QrCode;
+let html5QrCode = null;
 
-// ================= INICIAR =================
+let canvas;
+let ctx;
+let desenhando = false;
+
+// ================= INIT =================
 window.onload = () => {
+
     renderizarTabela();
     atualizarDashboard();
     configurarCanvas();
 
-    const inputPin = document.getElementById('pinConfirmacao');
-    if(inputPin) {
-        inputPin.addEventListener('input', function() {
+    const inputPin = document.getElementById("pinConfirmacao");
+
+    if (inputPin) {
+        inputPin.addEventListener("input", function () {
             validarPinInstantaneo(this.value);
         });
     }
+
 };
 
-// ================= SALVAR E ATUALIZAR =================
+// ================= SALVAR =================
 function salvarEAtualizar() {
-    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
+
+    localStorage.setItem(
+        CONFIG.ID_CLIENTE,
+        JSON.stringify(encomendas)
+    );
+
     renderizarTabela();
     atualizarDashboard();
 }
 
+// ================= DASHBOARD =================
+function atualizarDashboard() {
+
+    const total = encomendas.length;
+
+    const aguardando = encomendas.filter(
+        e => e.status === "Aguardando retirada"
+    ).length;
+
+    const retiradas = encomendas.filter(
+        e => e.status === "Retirado"
+    ).length;
+
+    const t = document.getElementById("dashTotal");
+    const a = document.getElementById("dashAguardando");
+    const r = document.getElementById("dashRetirado");
+
+    if (t) t.innerText = total;
+    if (a) a.innerText = aguardando;
+    if (r) r.innerText = retiradas;
+}
+
 // ================= CAMERA =================
 async function alternarCamera() {
-    const area = document.getElementById('area-scanner');
-    if (area.style.display === 'none') {
-        area.style.display = 'block';
+
+    const area = document.getElementById("area-scanner");
+
+    if (area.style.display === "none") {
+
+        area.style.display = "block";
+
         html5QrCode = new Html5Qrcode("reader");
+
         try {
+
             await html5QrCode.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 150 } },
+
                 (decodedText) => {
-                    document.getElementById('notaFiscal').value = decodedText;
+
+                    document.getElementById("notaFiscal").value = decodedText;
+
                     pararLeitor();
                 }
             );
+
         } catch (err) {
-            alert("Erro ao acessar câmera: " + err);
-            area.style.display = 'none';
+
+            alert("Erro ao acessar câmera");
+
+            area.style.display = "none";
         }
+
     } else {
+
         pararLeitor();
     }
 }
 
 function pararLeitor() {
+
     if (html5QrCode) {
+
         html5QrCode.stop().then(() => {
-            document.getElementById('area-scanner').style.display = 'none';
+
+            document.getElementById("area-scanner").style.display = "none";
+
             html5QrCode = null;
+
         }).catch(() => {
-            document.getElementById('area-scanner').style.display = 'none';
+
+            document.getElementById("area-scanner").style.display = "none";
         });
     }
 }
 
 // ================= BUSCAR MORADORES =================
-function buscarMoradores() {
-    const num = document.getElementById('sala').value.trim();
-    if (!num) {
-        document.getElementById('listaSugestoesMoradores').style.display = 'none';
-        return;
-    }
-    const chave = "Collection" + num;
-    const listaSugestoes = document.getElementById('listaSugestoesMoradores');
-    const container = document.getElementById('containerSugestoes');
+function buscarMoradores(apto) {
+
+    const numero = apto.replace(/\D/g, "");
+
+    const chave = "Collection" + numero;
 
     if (agendaMoradores[chave]) {
-        listaSugestoes.style.display = 'block';
-        container.innerHTML = '';
-        agendaMoradores[chave].moradores.forEach(m => {
-            const btn = document.createElement('button');
-            btn.type = "button";
-            btn.className = "btn-sugestao";
-            btn.innerText = m.nome;
-            btn.onclick = () => {
-                document.getElementById('destinatario').value = m.nome;
-                document.getElementById('telefone').value = m.tel;
-                listaSugestoes.style.display = 'none';
-            };
-            container.appendChild(btn);
-        });
-    } else {
-        listaSugestoes.style.display = 'none';
+
+        return agendaMoradores[chave].moradores;
+
     }
+
+    return [];
 }
 
-// ================= WHATSAPP COM PIN INCLUÍDO =================
-// ================= CONFIGURAÇÃO =================
-const CONFIG = {
-    NOME_SISTEMA: "Condomínio Collection",
-    ID_CLIENTE: "db_collection_v1",
-    PIN_PADRAO: "1234"
-};
-
-// ================= INICIAR =================
-window.onload = () => {
-    renderizarTabela();
-    atualizarDashboard();
-    configurarCanvas();
-
-    const inputPin = document.getElementById('pinConfirmacao');
-    if(inputPin) {
-        inputPin.addEventListener('input', function() {
-            validarPinInstantaneo(this.value);
-        });
-    }
-};
-
-// ================= SALVAR E ATUALIZAR =================
-function salvarEAtualizar() {
-    localStorage.setItem(CONFIG.ID_CLIENTE, JSON.stringify(encomendas));
-    renderizarTabela();
-    atualizarDashboard();
-}
-
-// ================= CAMERA =================
-async function alternarCamera() {
-    const area = document.getElementById('area-scanner');
-    if (area.style.display === 'none') {
-        area.style.display = 'block';
-        html5QrCode = new Html5Qrcode("reader");
-        try {
-            await html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 150 } },
-                (decodedText) => {
-                    document.getElementById('notaFiscal').value = decodedText;
-                    pararLeitor();
-                }
-            );
-        } catch (err) {
-            alert("Erro ao acessar câmera: " + err);
-            area.style.display = 'none';
-        }
-    } else {
-        pararLeitor();
-    }
-}
-
-function pararLeitor() {
-    if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-            document.getElementById('area-scanner').style.display = 'none';
-            html5QrCode = null;
-        }).catch(() => {
-            document.getElementById('area-scanner').style.display = 'none';
-        });
-    }
-}
-
-// ================= BUSCAR MORADORES =================
-function buscarMoradores() {
-    const num = document.getElementById('sala').value.trim();
-    if (!num) {
-        document.getElementById('listaSugestoesMoradores').style.display = 'none';
-        return;
-    }
-    const chave = "Collection" + num;
-    const listaSugestoes = document.getElementById('listaSugestoesMoradores');
-    const container = document.getElementById('containerSugestoes');
-
-    if (agendaMoradores[chave]) {
-        listaSugestoes.style.display = 'block';
-        container.innerHTML = '';
-        agendaMoradores[chave].moradores.forEach(m => {
-            const btn = document.createElement('button');
-            btn.type = "button";
-            btn.className = "btn-sugestao";
-            btn.innerText = m.nome;
-            btn.onclick = () => {
-                document.getElementById('destinatario').value = m.nome;
-                document.getElementById('telefone').value = m.tel;
-                listaSugestoes.style.display = 'none';
-            };
-            container.appendChild(btn);
-        });
-    } else {
-        listaSugestoes.style.display = 'none';
-    }
-}
-
-// ================= WHATSAPP COM PIN INCLUÍDO =================
+// ================= WHATSAPP =================
 function enviarZap(item, tipo) {
+
     if (!item.telefone) return;
-    
+
     const tel = item.telefone.replace(/\D/g, '');
+
+    const numero = item.sala.toString().replace(/\D/g, '');
+
+    const chave = "Collection" + numero;
+
+    const pin =
+        agendaMoradores[chave]
+            ? agendaMoradores[chave].pin
+            : CONFIG.PIN_PADRAO;
+
     const agora = new Date();
+
     const hora = agora.getHours();
-    
-    // Busca o PIN do apartamento para enviar na mensagem de chegada
-    const numApto = item.sala.toString().replace(/\D/g, '');
-    const chave = "Collection" + numApto;
-    const pinMorador = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
 
-    let saudacao = "";
-    if (hora >= 5 && hora < 12) {
-        saudacao = "Bom dia";
-    } else if (hora >= 12 && hora < 18) {
-        saudacao = "Boa tarde";
-    } else {
-        saudacao = "Boa noite";
-    }
-    
+    let saudacao = "Boa noite";
+
+    if (hora < 12) saudacao = "Bom dia";
+    else if (hora < 18) saudacao = "Boa tarde";
+
     let msg = "";
-    
-    if (tipo === 'chegada') {
-        msg = `${saudacao}, *${item.destinatario}*! 📦\n\n`;
-        msg += `Sua encomenda NF: *${item.nf}* chegou na Portaria do *${CONFIG.NOME_SISTEMA}*.\n`;
-        msg += `Apto: *${item.sala}*.\n\n`;
-        // MELHORIA: PIN incluído na mensagem
-        msg += `🔐 Seu PIN de retirada: *${pinMorador}*\n\n`;
-        msg += `Por favor, apresente este código ao retirar.`;
+
+    if (tipo === "chegada") {
+
+        msg =
+`${saudacao}, ${item.destinatario}
+
+Sua encomenda NF ${item.nf} chegou na portaria do ${CONFIG.NOME_SISTEMA}
+
+Apto: ${item.sala}
+
+PIN de retirada: ${pin}`;
+
     } else {
-        msg = `✅ *Confirmação de Retirada*\n\n`;
-        msg += `${saudacao}, *${item.destinatario}*!\n\n`;
-        msg += `A encomenda NF: *${item.nf}* do apto *${item.sala}* foi retirada por *${item.quemRetirou}* em ${item.dataRetirada}.`;
+
+        msg =
+`Confirmação de retirada
+
+${item.destinatario}
+
+NF: ${item.nf}
+
+Retirado por: ${item.quemRetirou}
+
+Data: ${item.dataRetirada}`;
     }
 
-    const linkZap = `https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`;
-    window.open(linkZap, '_blank');
+    const link =
+`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent(msg)}`;
+
+    window.open(link, "_blank");
 }
 
-// ================= CADASTRO E EDIÇÃO =================
-document.getElementById('formRecebimento').addEventListener('submit', function(e) {
+// ================= CADASTRAR =================
+document.getElementById("formRecebimento").addEventListener("submit", function (e) {
+
     e.preventDefault();
-    const idExistente = document.getElementById('editId').value;
-    const dados = {
-        nf: document.getElementById('notaFiscal').value,
-        sala: document.getElementById('sala').value,
-        destinatario: document.getElementById('destinatario').value,
-        telefone: document.getElementById('telefone').value,
+
+    const nf = document.getElementById("notaFiscal").value;
+    const sala = document.getElementById("sala").value;
+    const destinatario = document.getElementById("destinatario").value;
+    const telefone = document.getElementById("telefone").value;
+
+    const nova = {
+
+        id: Date.now(),
+
+        nf,
+        sala,
+        destinatario,
+        telefone,
+
+        data: new Date().toLocaleDateString("pt-BR"),
+
+        status: "Aguardando retirada",
+
+        quemRetirou: "",
+        dataRetirada: "",
+        assinatura: ""
+
     };
 
-    if (idExistente) {
-        const index = encomendas.findIndex(enc => enc.id == idExistente);
-        encomendas[index] = { ...encomendas[index], ...dados };
-        cancelarEdicao();
-    } else {
-        const nova = {
-            id: Date.now(),
-            ...dados,
-            data: new Date().toLocaleDateString('pt-BR'),
-            status: 'Aguardando retirada',
-            quemRetirou: '',
-            dataRetirada: '',
-            assinatura: ''
-        };
-        encomendas.push(nova);
-        enviarZap(nova, 'chegada');
-    }
+    encomendas.push(nova);
+
+    enviarZap(nova, "chegada");
+
     salvarEAtualizar();
+
     this.reset();
 });
 
-function editarEncomenda(id) {
-    const enc = encomendas.find(e => e.id === id);
-    if (!enc) return;
-    document.getElementById('editId').value = enc.id;
-    document.getElementById('notaFiscal').value = enc.nf;
-    document.getElementById('sala').value = enc.sala;
-    document.getElementById('destinatario').value = enc.destinatario;
-    document.getElementById('telefone').value = enc.telefone;
-    document.getElementById('tituloForm').innerText = "✏️ Editar Encomenda";
-    document.getElementById('btnSalvar').innerText = "Salvar Alterações";
-    document.getElementById('btnCancelarEdit').style.display = "block";
-    window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-function cancelarEdicao() {
-    document.getElementById('formRecebimento').reset();
-    document.getElementById('editId').value = '';
-    document.getElementById('tituloForm').innerText = "📦 Novo Recebimento";
-    document.getElementById('btnSalvar').innerText = "Salvar e Notificar";
-    document.getElementById('btnCancelarEdit').style.display = "none";
-}
-
-function excluirEncomenda(id) {
-    if(confirm("Deseja apagar esta encomenda?")) {
-        encomendas = encomendas.filter(e => e.id !== id);
-        salvarEAtualizar();
-        document.getElementById('resultadoConteudo').innerHTML = '<p class="placeholder-text">Selecione uma encomenda.</p>';
-    }
-}
-
-// ================= RENDERIZAR TABELA =================
+// ================= TABELA =================
 function renderizarTabela() {
-    const corpo = document.getElementById('listaCorpo');
-    const fData = document.getElementById('filtroData').value;
-    const fSala = document.getElementById('filtroSala').value.toLowerCase();
-    const fNF = document.getElementById('filtroNF').value.toLowerCase();
-    const fNome = document.getElementById('filtroNome').value.toLowerCase();
-    const fStatus = document.getElementById('filtroStatus').value;
 
-    corpo.innerHTML = '';
+    const tabela = document.getElementById("tabelaEncomendas");
 
-    let filtradas = encomendas.filter(e => {
-        const bData = !fData || e.data.split('/').reverse().join('-') === fData;
-        const bSala = !fSala || e.sala.toString().toLowerCase().includes(fSala);
-        const bNF = !fNF || e.nf.toString().toLowerCase().includes(fNF);
-        const bNome = !fNome || e.destinatario.toLowerCase().includes(fNome);
-        const bStatus = !fStatus || e.status === fStatus;
-        return bData && bSala && bNF && bNome && bStatus;
-    });
+    if (!tabela) return;
 
-    filtradas.sort((a, b) => {
-        const nA = parseInt(a.sala.toString().replace(/\D/g, '')) || 0;
-        const nB = parseInt(b.sala.toString().replace(/\D/g, '')) || 0;
-        return nA - nB;
-    });
+    tabela.innerHTML = "";
 
-    const contDetalhes = document.getElementById('resultadoConteudo');
-    if (filtradas.length > 0 && (fSala || fNF || fNome)) {
-        let htmlFiltro = `<div style="padding:10px; background:#f0f7ff; border-radius:8px; margin-bottom:10px; border:1px solid #bae6fd;">
-                            <strong style="color:#0369a1;">🔎 Encontrados (${filtradas.length}):</strong><br>`;
-        filtradas.forEach(f => {
-            htmlFiltro += `<div class="item-filtro-lista" onclick="selecionarUnica(${f.id})" style="cursor:pointer; padding:5px; border-bottom:1px solid #e0e0e0; font-size:0.85em;">
-                            Apto ${f.sala} - ${f.destinatario.split(' ')[0]}...
-                           </div>`;
-        });
-        htmlFiltro += `</div>`;
-        contDetalhes.innerHTML = htmlFiltro + `<p style="font-size:0.8em; color:#999; text-align:center;">Selecione um item acima para finalizar.</p>`;
-    }
+    encomendas.forEach(e => {
 
-    filtradas.forEach(enc => {
-        const tr = document.createElement('tr');
-        tr.onclick = () => selecionarUnica(enc.id);
-        const corStatus = enc.status === 'Retirado' ? '#15803d' : '#f59e0b';
+        const tr = document.createElement("tr");
+
         tr.innerHTML = `
-            <td>${enc.data}</td>
-            <td>${enc.nf}</td>
-            <td>${enc.sala}</td>
-            <td>${enc.destinatario}</td>
-            <td style="color:${corStatus}; font-weight:bold;">${enc.status}</td>
-            <td>
-                <button onclick="event.stopPropagation(); editarEncomenda(${enc.id})" style="cursor:pointer; background:none; border:none; font-size:1.2em;">✏️</button>
-                <button onclick="event.stopPropagation(); excluirEncomenda(${enc.id})" style="cursor:pointer; background:none; border:none; font-size:1.2em;">🗑️</button>
-            </td>
-        `;
-        corpo.appendChild(tr);
+<td>${e.nf}</td>
+<td>${e.sala}</td>
+<td>${e.destinatario}</td>
+<td>${e.data}</td>
+<td>${e.status}</td>
+<td>
+
+<button onclick="editarEncomenda(${e.id})">Editar</button>
+
+<button onclick="excluirEncomenda(${e.id})">Excluir</button>
+
+<button onclick="selecionarUnica(${e.id})">Retirar</button>
+
+</td>
+`;
+
+        tabela.appendChild(tr);
+
     });
 }
 
-// ================= VALIDAÇÃO DE PIN INSTANTÂNEA =================
-function validarPinInstantaneo(valor) {
-    if (!selecionadaId) return;
-    const item = encomendas.find(e => e.id === selecionadaId);
-    if (!item) return;
+// ================= EDITAR =================
+function editarEncomenda(id) {
 
-    const numApto = item.sala.toString().replace(/\D/g, '');
-    const chave = "Collection" + numApto;
-    const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
+    const item = encomendas.find(e => e.id === id);
 
-    const canvas = document.getElementById('canvasAssinatura');
-    const btnFin = document.querySelector('button[onclick="finalizarEntrega()"]');
+    document.getElementById("notaFiscal").value = item.nf;
+    document.getElementById("sala").value = item.sala;
+    document.getElementById("destinatario").value = item.destinatario;
+    document.getElementById("telefone").value = item.telefone;
 
-    if (valor === pinCorreto) {
-        canvas.style.display = 'block';
-        if(btnFin) btnFin.disabled = false;
-        document.getElementById('pinConfirmacao').style.borderColor = "#22c55e";
-    } else {
-        canvas.style.display = 'none';
-        if(btnFin) btnFin.disabled = true;
-        document.getElementById('pinConfirmacao').style.borderColor = "#d1d5db";
-    }
+    excluirEncomenda(id);
 }
 
-// ================= FINALIZAR ENTREGA =================
-function finalizarEntrega() {
-    const nomeRec = document.getElementById('nomeRec').value;
-    const pin = document.getElementById('pinConfirmacao').value;
-    if (!nomeRec) return alert("Quem está retirando?");
-    
-    const item = encomendas.find(e => e.id === selecionadaId);
-    const chave = "Collection" + item.sala.toString().replace(/\D/g, '');
-    const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
+// ================= EXCLUIR =================
+function excluirEncomenda(id) {
 
-    if (pin !== pinCorreto) return alert("PIN INCORRETO!");
+    if (!confirm("Excluir encomenda?")) return;
 
-    const canvas = document.getElementById('canvasAssinatura');
-    const tempCanvas = document.createElement('canvas');
-    const tCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = canvas.width; 
-    tempCanvas.height = canvas.height;
-    
-    tCtx.fillStyle = "#FFFFFF"; 
-    tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tCtx.drawImage(canvas, 0, 0);
-
-    const index = encomendas.findIndex(e => e.id === selecionadaId);
-    encomendas[index].status = 'Retirado';
-    encomendas[index].quemRetirou = nomeRec;
-    encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 1.0);
+    encomendas = encomendas.filter(e => e.id !== id);
 
     salvarEAtualizar();
-    enviarZap(encomendas[index], 'retirada');
-    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
-    selecionarUnica(selecionadaId);
 }
 
-// ================= UTILITÁRIOS =================
+// ================= SELECIONAR =================
 function selecionarUnica(id) {
+
     selecionadaId = id;
-    const enc = encomendas.find(e => e.id === id);
-    if(!enc) return;
-    const cont = document.getElementById('resultadoConteudo');
-    const bloco = document.getElementById('blocoConfirmarRetirada');
-    
-    document.getElementById('pinConfirmacao').value = '';
-    document.getElementById('pinConfirmacao').style.borderColor = "#d1d5db";
-    document.getElementById('canvasAssinatura').style.display = 'none';
-    
-    let html = `<div style="font-size:0.9em;">
-        <p><strong>NF:</strong> ${enc.nf} | <strong>Apto:</strong> ${enc.sala}</p>
-        <p><strong>Para:</strong> ${enc.destinatario}</p><hr>`;
-    
-    if (enc.status === 'Retirado') {
-        html += `<p style="color:green; font-weight:bold;">✅ Retirado por: ${enc.quemRetirou}</p><p>🕒 ${enc.dataRetirada}</p>
-                 <div style="background:white; padding:5px; border:1px solid #ddd; margin-top:5px;">
-                    <img src="${enc.assinatura}" style="width:100%; display:block;">
-                 </div>`;
-        bloco.style.display = 'none';
+
+    document.getElementById("modalRetirada").style.display = "block";
+}
+
+// ================= PIN =================
+function validarPinInstantaneo(valor) {
+
+    if (!selecionadaId) return;
+
+    const item = encomendas.find(e => e.id === selecionadaId);
+
+    const numero = item.sala.replace(/\D/g, "");
+
+    const chave = "Collection" + numero;
+
+    const pin =
+        agendaMoradores[chave]
+            ? agendaMoradores[chave].pin
+            : CONFIG.PIN_PADRAO;
+
+    if (valor === pin) {
+
+        document.getElementById("areaAssinatura").style.display = "block";
+
     } else {
-        html += `<p style="color:orange; font-weight:bold;">⏳ Aguardando na portaria</p>
-                 <button onclick="enviarZap(encomendas.find(e=>e.id===${enc.id}), 'chegada')" style="width:100%; padding:8px; background:#2563eb; color:white; border:none; border-radius:5px; margin-top:5px; cursor:pointer;">📲 Notificar Morador</button>`;
-        bloco.style.display = 'block';
-        limparAssinatura();
+
+        document.getElementById("areaAssinatura").style.display = "none";
     }
-    cont.innerHTML = html + `</div>`;
-}
-
-function atualizarDashboard() {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const totalH = document.getElementById('dashTotal');
-    const aguardH = document.getElementById('dashAguardando');
-    const retirH = document.getElementById('dashRetirados');
-    if(totalH) totalH.innerText = encomendas.filter(e => e.data === hoje).length;
-    if(aguardH) aguardH.innerText = encomendas.filter(e => e.status === 'Aguardando retirada').length;
-    if(retirH) retirH.innerText = encomendas.filter(e => e.status === 'Retirado').length;
-}
-
-function aplicarFiltros() { renderizarTabela(); }
-
-function limparFiltros() {
-    document.getElementById('filtroData').value = '';
-    document.getElementById('filtroSala').value = '';
-    document.getElementById('filtroNF').value = '';
-    document.getElementById('filtroNome').value = '';
-    document.getElementById('filtroStatus').value = '';
-    renderizarTabela();
-}
-
-function exportarCSV() {
-    let csv = "\ufeffData;NF;Apto;Destinatario;Status;Quem Retirou;Data Retirada\n";
-    encomendas.forEach(e => {
-        csv += `${e.data};${e.nf};${e.sala};${e.destinatario};${e.status};${e.quemRetirou};${e.dataRetirada}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "encomendas_collection.csv";
-    link.click();
 }
 
 // ================= CANVAS =================
-let desenhando = false;
 function configurarCanvas() {
-    const canvas = document.getElementById('canvasAssinatura');
-    if(!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const getPos = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
-    };
+    canvas = document.getElementById("canvasAssinatura");
 
-    const iniciar = (e) => {
-        desenhando = true; 
-        const pos = getPos(e);
-        ctx.beginPath(); 
-        ctx.moveTo(pos.x, pos.y);
-        if(e.type.startsWith('touch')) e.preventDefault();
-    };
+    if (!canvas) return;
 
-    const mover = (e) => {
-        if(!desenhando) return;
-        const pos = getPos(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        ctx.stroke();
-        if(e.type.startsWith('touch')) e.preventDefault();
-    };
+    ctx = canvas.getContext("2d");
 
-    canvas.addEventListener('mousedown', iniciar);
-    canvas.addEventListener('touchstart', iniciar, {passive: false});
-    canvas.addEventListener('mousemove', mover);
-    canvas.addEventListener('touchmove', mover, {passive: false});
-    window.addEventListener('mouseup', () => desenhando = false);
-    window.addEventListener('touchend', () => desenhando = false);
+    canvas.addEventListener("mousedown", () => desenhando = true);
+
+    canvas.addEventListener("mouseup", () => {
+
+        desenhando = false;
+
+        ctx.beginPath();
+    });
+
+    canvas.addEventListener("mousemove", desenhar);
 }
 
-function limparAssinatura() {
-    const c = document.getElementById('canvasAssinatura');
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, c.width, c.height);
+function desenhar(e) {
+
+    if (!desenhando) return;
+
+    ctx.lineWidth = 2;
+
+    ctx.lineCap = "round";
+
+    ctx.lineTo(e.offsetX, e.offsetY);
+
+    ctx.stroke();
+
     ctx.beginPath();
+
+    ctx.moveTo(e.offsetX, e.offsetY);
 }
 
-// ================= CADASTRO E EDIÇÃO =================
-document.getElementById('formRecebimento').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const idExistente = document.getElementById('editId').value;
-    const dados = {
-        nf: document.getElementById('notaFiscal').value,
-        sala: document.getElementById('sala').value,
-        destinatario: document.getElementById('destinatario').value,
-        telefone: document.getElementById('telefone').value,
-    };
-
-    if (idExistente) {
-        const index = encomendas.findIndex(enc => enc.id == idExistente);
-        encomendas[index] = { ...encomendas[index], ...dados };
-        cancelarEdicao();
-    } else {
-        const nova = {
-            id: Date.now(),
-            ...dados,
-            data: new Date().toLocaleDateString('pt-BR'),
-            status: 'Aguardando retirada',
-            quemRetirou: '',
-            dataRetirada: '',
-            assinatura: ''
-        };
-        encomendas.push(nova);
-        enviarZap(nova, 'chegada');
-    }
-    salvarEAtualizar();
-    this.reset();
-});
-
-function editarEncomenda(id) {
-    const enc = encomendas.find(e => e.id === id);
-    if (!enc) return;
-    document.getElementById('editId').value = enc.id;
-    document.getElementById('notaFiscal').value = enc.nf;
-    document.getElementById('sala').value = enc.sala;
-    document.getElementById('destinatario').value = enc.destinatario;
-    document.getElementById('telefone').value = enc.telefone;
-    document.getElementById('tituloForm').innerText = "✏️ Editar Encomenda";
-    document.getElementById('btnSalvar').innerText = "Salvar Alterações";
-    document.getElementById('btnCancelarEdit').style.display = "block";
-    window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-function cancelarEdicao() {
-    document.getElementById('formRecebimento').reset();
-    document.getElementById('editId').value = '';
-    document.getElementById('tituloForm').innerText = "📦 Novo Recebimento";
-    document.getElementById('btnSalvar').innerText = "Salvar e Notificar";
-    document.getElementById('btnCancelarEdit').style.display = "none";
-}
-
-function excluirEncomenda(id) {
-    if(confirm("Deseja apagar esta encomenda?")) {
-        encomendas = encomendas.filter(e => e.id !== id);
-        salvarEAtualizar();
-        document.getElementById('resultadoConteudo').innerHTML = '<p class="placeholder-text">Selecione uma encomenda.</p>';
-    }
-}
-
-// ================= RENDERIZAR TABELA =================
-function renderizarTabela() {
-    const corpo = document.getElementById('listaCorpo');
-    const fData = document.getElementById('filtroData').value;
-    const fSala = document.getElementById('filtroSala').value.toLowerCase();
-    const fNF = document.getElementById('filtroNF').value.toLowerCase();
-    const fNome = document.getElementById('filtroNome').value.toLowerCase();
-    const fStatus = document.getElementById('filtroStatus').value;
-
-    corpo.innerHTML = '';
-
-    let filtradas = encomendas.filter(e => {
-        const bData = !fData || e.data.split('/').reverse().join('-') === fData;
-        const bSala = !fSala || e.sala.toString().toLowerCase().includes(fSala);
-        const bNF = !fNF || e.nf.toString().toLowerCase().includes(fNF);
-        const bNome = !fNome || e.destinatario.toLowerCase().includes(fNome);
-        const bStatus = !fStatus || e.status === fStatus;
-        return bData && bSala && bNF && bNome && bStatus;
-    });
-
-    filtradas.sort((a, b) => {
-        const nA = parseInt(a.sala.toString().replace(/\D/g, '')) || 0;
-        const nB = parseInt(b.sala.toString().replace(/\D/g, '')) || 0;
-        return nA - nB;
-    });
-
-    const contDetalhes = document.getElementById('resultadoConteudo');
-    if (filtradas.length > 0 && (fSala || fNF || fNome)) {
-        let htmlFiltro = `<div style="padding:10px; background:#f0f7ff; border-radius:8px; margin-bottom:10px; border:1px solid #bae6fd;">
-                            <strong style="color:#0369a1;">🔎 Encontrados (${filtradas.length}):</strong><br>`;
-        filtradas.forEach(f => {
-            htmlFiltro += `<div class="item-filtro-lista" onclick="selecionarUnica(${f.id})" style="cursor:pointer; padding:5px; border-bottom:1px solid #e0e0e0; font-size:0.85em;">
-                            Apto ${f.sala} - ${f.destinatario.split(' ')[0]}...
-                           </div>`;
-        });
-        htmlFiltro += `</div>`;
-        contDetalhes.innerHTML = htmlFiltro + `<p style="font-size:0.8em; color:#999; text-align:center;">Selecione um item acima para finalizar.</p>`;
-    }
-
-    filtradas.forEach(enc => {
-        const tr = document.createElement('tr');
-        tr.onclick = () => selecionarUnica(enc.id);
-        const corStatus = enc.status === 'Retirado' ? '#15803d' : '#f59e0b';
-        tr.innerHTML = `
-            <td>${enc.data}</td>
-            <td>${enc.nf}</td>
-            <td>${enc.sala}</td>
-            <td>${enc.destinatario}</td>
-            <td style="color:${corStatus}; font-weight:bold;">${enc.status}</td>
-            <td>
-                <button onclick="event.stopPropagation(); editarEncomenda(${enc.id})" style="cursor:pointer; background:none; border:none; font-size:1.2em;">✏️</button>
-                <button onclick="event.stopPropagation(); excluirEncomenda(${enc.id})" style="cursor:pointer; background:none; border:none; font-size:1.2em;">🗑️</button>
-            </td>
-        `;
-        corpo.appendChild(tr);
-    });
-}
-
-// ================= VALIDAÇÃO DE PIN INSTANTÂNEA =================
-function validarPinInstantaneo(valor) {
-    if (!selecionadaId) return;
-    const item = encomendas.find(e => e.id === selecionadaId);
-    if (!item) return;
-
-    const numApto = item.sala.toString().replace(/\D/g, '');
-    const chave = "Collection" + numApto;
-    const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
-
-    const canvas = document.getElementById('canvasAssinatura');
-    const btnFin = document.querySelector('button[onclick="finalizarEntrega()"]');
-
-    if (valor === pinCorreto) {
-        canvas.style.display = 'block';
-        if(btnFin) btnFin.disabled = false;
-        document.getElementById('pinConfirmacao').style.borderColor = "#22c55e";
-    } else {
-        canvas.style.display = 'none';
-        if(btnFin) btnFin.disabled = true;
-        document.getElementById('pinConfirmacao').style.borderColor = "#d1d5db";
-    }
-}
-
-// ================= FINALIZAR ENTREGA =================
+// ================= FINALIZAR =================
 function finalizarEntrega() {
-    const nomeRec = document.getElementById('nomeRec').value;
-    const pin = document.getElementById('pinConfirmacao').value;
-    if (!nomeRec) return alert("Quem está retirando?");
-    
-    const item = encomendas.find(e => e.id === selecionadaId);
-    const chave = "Collection" + item.sala.toString().replace(/\D/g, '');
-    const pinCorreto = agendaMoradores[chave] ? agendaMoradores[chave].pin : CONFIG.PIN_PADRAO;
 
-    if (pin !== pinCorreto) return alert("PIN INCORRETO!");
+    const nome = document.getElementById("nomeRec").value;
 
-    const canvas = document.getElementById('canvasAssinatura');
-    const tempCanvas = document.createElement('canvas');
-    const tCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = canvas.width; 
-    tempCanvas.height = canvas.height;
-    
-    tCtx.fillStyle = "#FFFFFF"; 
-    tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tCtx.drawImage(canvas, 0, 0);
+    if (!nome) {
+
+        alert("Informe quem retirou");
+
+        return;
+    }
 
     const index = encomendas.findIndex(e => e.id === selecionadaId);
-    encomendas[index].status = 'Retirado';
-    encomendas[index].quemRetirou = nomeRec;
-    encomendas[index].dataRetirada = new Date().toLocaleString('pt-BR');
-    encomendas[index].assinatura = tempCanvas.toDataURL('image/jpeg', 1.0);
+
+    encomendas[index].status = "Retirado";
+
+    encomendas[index].quemRetirou = nome;
+
+    encomendas[index].dataRetirada =
+        new Date().toLocaleString("pt-BR");
+
+    encomendas[index].assinatura =
+        canvas.toDataURL();
+
+    enviarZap(encomendas[index], "retirada");
 
     salvarEAtualizar();
-    enviarZap(encomendas[index], 'retirada');
-    document.getElementById('blocoConfirmarRetirada').style.display = 'none';
-    selecionarUnica(selecionadaId);
-}
 
-// ================= UTILITÁRIOS =================
-function selecionarUnica(id) {
-    selecionadaId = id;
-    const enc = encomendas.find(e => e.id === id);
-    if(!enc) return;
-    const cont = document.getElementById('resultadoConteudo');
-    const bloco = document.getElementById('blocoConfirmarRetirada');
-    
-    document.getElementById('pinConfirmacao').value = '';
-    document.getElementById('pinConfirmacao').style.borderColor = "#d1d5db";
-    document.getElementById('canvasAssinatura').style.display = 'none';
-    
-    let html = `<div style="font-size:0.9em;">
-        <p><strong>NF:</strong> ${enc.nf} | <strong>Apto:</strong> ${enc.sala}</p>
-        <p><strong>Para:</strong> ${enc.destinatario}</p><hr>`;
-    
-    if (enc.status === 'Retirado') {
-        html += `<p style="color:green; font-weight:bold;">✅ Retirado por: ${enc.quemRetirou}</p><p>🕒 ${enc.dataRetirada}</p>
-                 <div style="background:white; padding:5px; border:1px solid #ddd; margin-top:5px;">
-                    <img src="${enc.assinatura}" style="width:100%; display:block;">
-                 </div>`;
-        bloco.style.display = 'none';
-    } else {
-        html += `<p style="color:orange; font-weight:bold;">⏳ Aguardando na portaria</p>
-                 <button onclick="enviarZap(encomendas.find(e=>e.id===${enc.id}), 'chegada')" style="width:100%; padding:8px; background:#2563eb; color:white; border:none; border-radius:5px; margin-top:5px; cursor:pointer;">📲 Notificar Morador</button>`;
-        bloco.style.display = 'block';
-        limparAssinatura();
-    }
-    cont.innerHTML = html + `</div>`;
-}
-
-function atualizarDashboard() {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const totalH = document.getElementById('dashTotal');
-    const aguardH = document.getElementById('dashAguardando');
-    const retirH = document.getElementById('dashRetirados');
-    if(totalH) totalH.innerText = encomendas.filter(e => e.data === hoje).length;
-    if(aguardH) aguardH.innerText = encomendas.filter(e => e.status === 'Aguardando retirada').length;
-    if(retirH) retirH.innerText = encomendas.filter(e => e.status === 'Retirado').length;
-}
-
-function aplicarFiltros() { renderizarTabela(); }
-
-function limparFiltros() {
-    document.getElementById('filtroData').value = '';
-    document.getElementById('filtroSala').value = '';
-    document.getElementById('filtroNF').value = '';
-    document.getElementById('filtroNome').value = '';
-    document.getElementById('filtroStatus').value = '';
-    renderizarTabela();
-}
-
-function exportarCSV() {
-    let csv = "\ufeffData;NF;Apto;Destinatario;Status;Quem Retirou;Data Retirada\n";
-    encomendas.forEach(e => {
-        csv += `${e.data};${e.nf};${e.sala};${e.destinatario};${e.status};${e.quemRetirou};${e.dataRetirada}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "encomendas_collection.csv";
-    link.click();
-}
-
-// ================= CANVAS =================
-let desenhando = false;
-function configurarCanvas() {
-    const canvas = document.getElementById('canvasAssinatura');
-    if(!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const getPos = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
-    };
-
-    const iniciar = (e) => {
-        desenhando = true; 
-        const pos = getPos(e);
-        ctx.beginPath(); 
-        ctx.moveTo(pos.x, pos.y);
-        if(e.type.startsWith('touch')) e.preventDefault();
-    };
-
-    const mover = (e) => {
-        if(!desenhando) return;
-        const pos = getPos(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        ctx.stroke();
-        if(e.type.startsWith('touch')) e.preventDefault();
-    };
-
-    canvas.addEventListener('mousedown', iniciar);
-    canvas.addEventListener('touchstart', iniciar, {passive: false});
-    canvas.addEventListener('mousemove', mover);
-    canvas.addEventListener('touchmove', mover, {passive: false});
-    window.addEventListener('mouseup', () => desenhando = false);
-    window.addEventListener('touchend', () => desenhando = false);
-}
-
-function limparAssinatura() {
-    const c = document.getElementById('canvasAssinatura');
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.beginPath();
+    document.getElementById("modalRetirada").style.display = "none";
 }
